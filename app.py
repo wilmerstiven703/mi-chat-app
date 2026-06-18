@@ -5,7 +5,7 @@ from groq import Groq
 # 1. Configuración de la aplicación web
 st.set_page_config(page_title="Mi Súper Chatbot Groq", page_icon="⚡", layout="wide")
 
-# --- DISEÑO VISUAL CORREGIDO CON ST.HTML ---
+# --- DISEÑO VISUAL CON ST.HTML ---
 st.html("""
     <style>
     /* Fondo principal de la app */
@@ -76,6 +76,20 @@ mensajes_a_recordar = st.sidebar.slider(
     step=2,
     help="Cuántos mensajes del historial verá la IA. Un número menor ahorra tokens y acelera el chat."
 )
+
+st.sidebar.markdown("---")
+
+# NUEVO: Panel de Estadísticas en tiempo real
+st.sidebar.subheader("📊 Estadísticas de la Sesión")
+
+# Calculamos el total de palabras acumuladas en el chat
+total_palabras = 0
+for msg in st.session_state.historial_mensajes:
+    total_palabras += len(msg["texto"].split())
+
+# Mostramos la métrica de forma visual e intuitiva
+st.sidebar.metric(label="Palabras procesadas:", value=f"{total_palabras}")
+st.sidebar.metric(label="Mensajes enviados:", value=f"{len(st.session_state.historial_mensajes)}")
 
 st.sidebar.markdown("---")
 
@@ -152,7 +166,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         if rol_seleccionado == "Programador Experto 💻":
             prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros en bloques de código."
         elif rol_seleccionado == "Traductor Pro 🌐":
-            prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma, corregir gramática y explicar modismos locales de forma cara."
+            prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma, corregir gramática y explicar modismos locales de forma clara."
         elif rol_seleccionado == "Profesor Divertido 🎓":
             prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles (ciencia, historia, matemáticas) usando analogías simples, chistes y un tono muy motivador."
 
