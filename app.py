@@ -1,6 +1,15 @@
 import os
+import subprocess
+import sys
+
+# TRUCO DE EMERGENCIA: Obliga al servidor a instalar la librería si no existe
+try:
+    from google import genai
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "google-genai"])
+    from google import genai
+
 import streamlit as st
-from google import genai
 
 # 1. Configuración de la aplicación web
 st.set_page_config(page_title="Mi Propio Chatbot", page_icon="🤖")
@@ -35,4 +44,3 @@ if pregunta_usuario := st.chat_input("Escribe un mensaje aquí..."):
     with st.chat_message("assistant"):
         st.markdown(respuesta.text)
     st.session_state.historial.append({"rol": "assistant", "texto": respuesta.text})
-
