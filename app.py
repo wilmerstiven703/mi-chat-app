@@ -28,7 +28,7 @@ modelo_seleccionado = st.sidebar.selectbox(
     help="El modelo 8b es ultra rápido; el 70b es ideal para tareas complejas."
 )
 
-# NUEVO: Selector de Personalidad/Rol
+# Selector de Personalidad/Rol
 rol_seleccionado = st.sidebar.selectbox(
     "Elige la personalidad de la IA:",
     options=["Asistente de Wilmer", "Programador Experto 💻", "Traductor Pro 🌐", "Profesor Divertido 🎓"],
@@ -68,7 +68,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         # Iniciamos el cliente oficial de Groq
         client = Groq()
         
-        # NUEVO: Diccionario para definir el System Prompt según el rol elegido
+        # Diccionario para definir el System Prompt según el rol elegido
         prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
         
         if rol_seleccionado == "Programador Experto 💻":
@@ -89,7 +89,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             rol_api = "user" if msg["rol"] == "user" else "assistant"
             historial_completo.append({"role": rol_api, "content": msg["texto"]})
             
-        # Llamamos al modelo seleccionado con flujo en tiempo real (Streaming)
+        # Llamamos al modelo seleccionado con flujo en tiempo real (Streaming Blindado)
         with st.chat_message("assistant"):
             def generar_respuesta():
                 stream = client.chat.completions.create(
@@ -99,8 +99,9 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                     stream=True,
                 )
                 for chunk in stream:
-                    if chunk.choices and len(chunk.choices) > 0:
-                        contenido = chunk.choices.delta.content
+                    # SOLUCIÓN DEFINITIVA: Acceso directo por índice al contenido del fragmento
+                    if hasattr(chunk, 'choices') and chunk.choices:
+                        contenido = chunk.choices[0].delta.content
                         if contenido:
                             yield contenido
 
