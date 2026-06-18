@@ -17,15 +17,25 @@ elif not os.environ.get("GROQ_API_KEY"):
 if "historial_mensajes" not in st.session_state:
     st.session_state.historial_mensajes = []
 
-# --- NUEVA BARRA LATERAL CONFIGURADA ---
+# --- BARRA LATERAL CONFIGURADA ---
 st.sidebar.header("🛠️ Configuración")
 
-# Selector de modelos actualizado a las versiones vigentes
+# Selector de modelos
 modelo_seleccionado = st.sidebar.selectbox(
     "Elige el cerebro de la IA:",
     options=["llama-3.1-8b-instant", "llama-3.3-70b-versatile"],
     index=0,
-    help="El modelo 8b es ultra rápido; el 70b es ideal para tareas complejas o programación."
+    help="El modelo 8b es ultra rápido; el 70b es ideal para tareas complejas."
+)
+
+# NUEVO: Control deslizante para limitar la memoria del chat
+mensajes_a_recordar = st.sidebar.slider(
+    "Cantidad de mensajes a recordar:",
+    min_value=2,
+    max_value=20,
+    value=6,
+    step=2,
+    help="Cuántos mensajes del historial verá la IA. Un número menor ahorra tokens y acelera el chat."
 )
 
 st.sidebar.markdown("---")
@@ -39,7 +49,7 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario y respuesta de la IA (Con modelo dinámico y Streaming)
+# 5. Entrada del usuario y respuesta de la IA (Con Memoria Ajustable)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     # Mostrar y guardar mensaje del usuario
     with st.chat_message("user"):
@@ -50,7 +60,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         # Iniciamos el cliente oficial de Groq
         client = Groq()
         
-        # Estructuramos el historial para que la IA recuerde el contexto
+        # Mensaje del sistema inicial
         historial_completo = [
             {
                 "role": "system", 
@@ -58,30 +68,31 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             }
         ]
         
+        # NUEVO: Recortamos el historial usando el valor del slider (los últimos X mensajes)
+        historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
+        
         # Mapeo limpio y seguro para la API de Groq
-        for msg in st.session_state.historial_mensajes:
+        for msg in historial_recortado:
             rol_api = "user" if msg["rol"] == "user" else "assistant"
             historial_completo.append({"role": rol_api, "content": msg["texto"]})
             
         # Llamamos al modelo seleccionado con flujo en tiempo real (Streaming)
         with st.chat_message("assistant"):
-            # Generador para procesar los fragmentos de texto
             def generar_respuesta():
                 stream = client.chat.completions.create(
-                    model=modelo_seleccionado,  # <--- Usa el modelo elegido en la barra lateral
+                    model=modelo_seleccionado,
                     messages=historial_completo,
                     temperature=0.7,
-                    stream=True,               # <--- Activamos el streaming
+                    stream=True,
                 )
                 for chunk in stream:
-                    contenido = chunk.choices[0].delta.content
+                    contenido = chunk.choices.delta.content
                     if contenido:
                         yield contenido
 
-            # Streamlit renderiza las palabras en pantalla en tiempo real
             respuesta_texto = st.write_stream(generar_respuesta())
             
-        # Guardamos la respuesta final en el historial
+        # Guardamos la respuesta final en el historial completo
         st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
         
     except Exception as e:
