@@ -180,29 +180,30 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             else:
                 historial_completo.append({"role": rol_api, "content": msg["texto"]})
             
-        # Llamada streaming a la API de Groq
+        # Llamada a la API de Groq con lectura directa y estable de caracteres
         with st.chat_message("assistant"):
-            def generar_respuesta():
-                stream = client.chat.completions.create(
-                    model=modelo_seleccionado,
-                    messages=historial_completo,
-                    temperature=0.7,
-                    stream=True,
-                )
-                for chunk in stream:
-                    try:
-                        if chunk.choices and len(chunk.choices) > 0:
-                            contenido = chunk.choices.delta.content
-                            if contenido:
-                                yield contenido
-                    except Exception:
-                        continue
-
-            # Renderizar flujo en pantalla en tiempo real
-            respuesta_texto = st.write_stream(generar_respuesta())
+            contenedor_texto = st.empty()
+            respuesta_texto = ""
+            
+            stream = client.chat.completions.create(
+                model=modelo_seleccionado,
+                messages=historial_completo,
+                temperature=0.7,
+                stream=True,
+            )
+            
+            for chunk in stream:
+                if chunk.choices and len(chunk.choices) > 0:
+                    contenido = chunk.choices[0].delta.content
+                    if contenido:
+                        respuesta_texto += contenido
+                        contenedor_texto.markdown(respuesta_texto) # Muestra el texto letra por letra de forma segura
             
         # Guardamos la respuesta del asistente en el historial general
         st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
+        
+        # Re-renderizamos para que se actualicen las métricas laterales con el nuevo conteo de palabras
+        st.rerun()
         
     except Exception as e:
         st.error(f"Ocurrió un problema técnico. Detalle: {e}")
