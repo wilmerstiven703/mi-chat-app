@@ -17,7 +17,19 @@ elif not os.environ.get("GROQ_API_KEY"):
 if "historial_mensajes" not in st.session_state:
     st.session_state.historial_mensajes = []
 
-# Barra lateral simple
+# --- NUEVA BARRA LATERAL CONFIGURADA ---
+st.sidebar.header("🛠️ Configuración")
+
+# Selector de modelos actualizado a las versiones vigentes
+modelo_seleccionado = st.sidebar.selectbox(
+    "Elige el cerebro de la IA:",
+    options=["llama-3.1-8b-instant", "llama-3.3-70b-versatile"],
+    index=0,
+    help="El modelo 8b es ultra rápido; el 70b es ideal para tareas complejas o programación."
+)
+
+st.sidebar.markdown("---")
+
 if st.sidebar.button("Toque para borrar chat"):
     st.session_state.historial_mensajes = []
     st.rerun()
@@ -27,7 +39,7 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario y respuesta de la IA (Llama 3.1)
+# 5. Entrada del usuario y respuesta de la IA (Con modelo dinámico y Streaming)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     # Mostrar y guardar mensaje del usuario
     with st.chat_message("user"):
@@ -51,19 +63,25 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             rol_api = "user" if msg["rol"] == "user" else "assistant"
             historial_completo.append({"role": rol_api, "content": msg["texto"]})
             
-        # Llamamos al modelo activo Llama 3.1 (Solución al error anterior)
-        with st.spinner("⚡ Pensando a la velocidad de la luz..."):
-            respuesta_api = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=historial_completo,
-                temperature=0.7,
-            )
-            
-        respuesta_texto = respuesta_api.choices[0].message.content
-        
-        # Mostrar y guardar respuesta del asistente
+        # Llamamos al modelo seleccionado con flujo en tiempo real (Streaming)
         with st.chat_message("assistant"):
-            st.markdown(respuesta_texto)
+            # Generador para procesar los fragmentos de texto
+            def generar_respuesta():
+                stream = client.chat.completions.create(
+                    model=modelo_seleccionado,  # <--- Usa el modelo elegido en la barra lateral
+                    messages=historial_completo,
+                    temperature=0.7,
+                    stream=True,               # <--- Activamos el streaming
+                )
+                for chunk in stream:
+                    contenido = chunk.choices[0].delta.content
+                    if contenido:
+                        yield contenido
+
+            # Streamlit renderiza las palabras en pantalla en tiempo real
+            respuesta_texto = st.write_stream(generar_respuesta())
+            
+        # Guardamos la respuesta final en el historial
         st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
         
     except Exception as e:
