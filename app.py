@@ -4,7 +4,47 @@ from groq import Groq
 
 # 1. Configuración de la aplicación web
 st.set_page_config(page_title="Mi Súper Chatbot Groq", page_icon="⚡", layout="wide")
-st.title("⚡ Mi Súper Chatbot de Alta Velocidad (Mensajes Ilimitados)")
+
+# --- NUEVO: DISEÑO VISUAL AVANZADO (CSS PERSONALIZADO) ---
+st.markdown("""
+    <style>
+    /* Fondo principal de la app */
+    .stApp {
+        background-color: #0d1117;
+        color: #c9d1d9;
+    }
+    
+    /* Estilo del título principal */
+    h1 {
+        color: #00ff66 !important;
+        font-family: 'Courier New', Courier, monospace;
+        text-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
+        font-weight: bold;
+    }
+    
+    /* Personalización de la barra lateral */
+    [data-testid="stSidebar"] {
+        background-color: #161b22 !important;
+        border-right: 2px solid #00ff66;
+    }
+    
+    /* Textos dentro de la barra lateral */
+    [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {
+        color: #00ff66 !important;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    
+    /* Estilo para los bloques de código */
+    code {
+        color: #ff79c6 !important;
+        background-color: #282a36 !important;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    </style>
+""", unsafe_allowed_html=True)
+
+st.title("⚡ Mi Súper Chatbot de Alta Velocidad")
 
 # 2. Conexión segura con los secretos de Streamlit
 if "GROQ_API_KEY" in st.secrets:
@@ -18,7 +58,7 @@ if "historial_mensajes" not in st.session_state:
     st.session_state.historial_mensajes = []
 
 # --- BARRA LATERAL CONFIGURADA ---
-st.sidebar.header("🛠️ Configuración")
+st.sidebar.header("🛠️ CONFIGURACIÓN")
 
 # Selector de modelos
 modelo_seleccionado = st.sidebar.selectbox(
@@ -149,14 +189,12 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                     stream=True,
                 )
                 for chunk in stream:
-                    # BLINDAJE DEFINITIVO CONTRA EL ERROR 'delta'
                     try:
                         if chunk.choices and len(chunk.choices) > 0:
-                            contenido = chunk.choices[0].delta.content  # <--- Acceso por índice explícito
+                            contenido = chunk.choices[0].delta.content
                             if contenido:
                                 yield contenido
                     except Exception:
-                        # Si un paquete de cierre viene mal estructurado, se ignora de forma segura
                         continue
 
             # Streamlit renderiza las palabras en pantalla en tiempo real
