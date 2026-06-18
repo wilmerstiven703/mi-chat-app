@@ -1,115 +1,59 @@
 import os
 import streamlit as st
-from google import genai
-from google.genai import types
-import PIL.Image
-import io
+from groq import Groq
 
 # 1. Configuración de la aplicación web
-st.set_page_config(page_title="Mi Súper Chatbot IA", page_icon="🚀", layout="wide")
-st.title("🚀 Mi Súper Chatbot Multimodal (Texto, Visión e Imágenes)")
+st.set_page_config(page_title="Mi Súper Chatbot Groq", page_icon="⚡", layout="wide")
+st.title("⚡ Mi Súper Chatbot de Alta Velocidad (Mensajes Ilimitados)")
 
 # 2. Conexión segura con los secretos de Streamlit
-if "GEMINI_API_KEY" in st.secrets:
-    os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
+if "GROQ_API_KEY" in st.secrets:
+    os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
 # 3. Inicializar el historial de mensajes en la memoria web
 if "historial_mensajes" not in st.session_state:
     st.session_state.historial_mensajes = []
 
-# BARRA LATERAL: Superpoderes
-st.sidebar.header("📸 Superpoder de Visión")
-imagen_subida = st.sidebar.file_uploader("Sube una foto para que el bot la analice:", type=["jpg", "jpeg", "png", "webp", "bmp", "gif"])
-
-if imagen_subida is not None:
-    imagen_pil = PIL.Image.open(imagen_subida)
-    st.sidebar.image(imagen_pil, caption="Imagen cargada con éxito", use_container_width=True)
-
-st.sidebar.markdown("---")
-st.sidebar.header("🎨 Superpoder de Dibujo")
-st.sidebar.info("Para que dibuje, empieza tu mensaje con la palabra **'dibuja'**.")
-
-if st.sidebar.button("🧹 Limpiar conversación"):
+# Barra lateral simple
+if st.sidebar.button("Toque para borrar chat"):
     st.session_state.historial_mensajes = []
     st.rerun()
 
 # 4. Mostrar todos los mensajes anteriores en la pantalla
 for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
-        if mensaje.get("es_imagen"):
-            st.image(mensaje["texto"], caption="Imagen generada por IA", width=400)
-        else:
-            st.markdown(mensaje["texto"])
+        st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario y respuesta de la IA
-if pregunta_usuario := st.chat_input("Escribe tu mensaje o pregunta aquí..."):
-    # Mostrar mensaje del usuario
+# 5. Entrada del usuario y respuesta de la IA (Llama 3 de Meta)
+if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
     try:
-        client = genai.Client()
-        texto_minuscula = pregunta_usuario.lower()
+        # Iniciamos el cliente oficial de Groq
+        client = Groq()
         
-        # ¿EL USUARIO QUIERE QUE DIBUJE?
-        if texto_minuscula.startswith("dibuja") or "crea una imagen" in texto_minuscula:
-            with st.spinner("🤖 Intentando conectar con el motor de dibujo..."):
-                try:
-                    resultado_dibujo = client.models.generate_images(
-                        model='imagen-3.0-generate-002',
-                        prompt=pregunta_usuario,
-                        config=types.GenerateImagesConfig(
-                            number_of_images=1,
-                            output_mime_type="image/jpeg",
-                            aspect_ratio="1:1"
-                        )
-                    )
-                    bytes_imagen = resultado_dibujo.generated_images.image.image_bytes
-                    imagen_creada = PIL.Image.open(io.BytesIO(bytes_imagen))
-                    
-                    with st.chat_message("assistant"):
-                        st.image(imagen_creada, caption="¡Aquí tienes tu dibujo!", width=400)
-                    st.session_state.historial_mensajes.append({"rol": "assistant", "texto": imagen_creada, "es_imagen": True})
-                
-                except Exception as error_api:
-                    # Protección por si no tiene permisos de dibujo
-                    respuesta_alternativa = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=f"El usuario te pidió dibujar esto: '{pregunta_usuario}'. Explícale amigablemente que tu creador Wilmer te programó la función de dibujo, pero que la API Key actual es de la versión gratuita de Google AI Studio y no tiene los permisos premium activados para generar imágenes. Dile qué podrías escribirle en texto en su lugar.",
-                        config=types.GenerateContentConfig(
-                            system_instruction="Eres un chatbot amigable creado por Wilmer."
-                        )
-                    )
-                    with st.chat_message("assistant"):
-                        st.markdown(respuesta_alternativa.text)
-                    st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_alternativa.text})
+        # Estructuramos el historial para que la IA recuerde el contexto
+        historial_completo = [
+            {"role": "system", "content": "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente."}
+        ]
         
-        # SI ES UNA CONVERSACIÓN NORMAL O ANÁLISIS DE FOTO
-        else:
-            elementos_a_enviar = []
-            if imagen_subida is not None:
-                elementos_a_enviar.append(imagen_pil)
-            elementos_a_enviar.append(pregunta_usuario)
+        for msg in st.session_state.historial_mensajes:
+            historial_completo.append({"role": msg["rol"], "content": msg["texto"]})
             
-            respuesta = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=elementos_a_enviar,
-                config=types.GenerateContentConfig(
-                    system_instruction="Eres el mejor chatbot del mundo. Hablas español, eres divertido y puedes ver imágenes detalladamente. Tu creador es un gran programador llamado Wilmer."
-                )
+        # Llamamos al modelo ultra rápido Llama 3 (8b es el más veloz)
+        with st.spinner("⚡ Pensando a la velocidad de la luz..."):
+            respuesta_api = client.chat.completions.create(
+                model="llama3-8b-8192",
+                messages=historial_completo,
             )
             
-            with st.chat_message("assistant"):
-                st.markdown(respuesta.text)
-            st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta.text})
-            
+        respuesta_texto = respuesta_api.choices[0].message.content
+        
+        with st.chat_message("assistant"):
+            st.markdown(respuesta_texto)
+        st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
+        
     except Exception as e:
-        # CONTROL DE ERRORES INTELIGENTE: Si se agota la cuota gratuita, muestra este aviso estético
-        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-            aviso_cuota = "⚠️ **¡Hola! Hemos alcanzado el límite de 20 mensajes gratuitos permitidos por Google para el día de hoy.** El sistema se restablecerá automáticamente en unas horas o el día de mañana. ¡Gracias por usar la aplicación de Wilmer! 🤖"
-            with st.chat_message("assistant"):
-                st.markdown(aviso_cuota)
-            st.session_state.historial_mensajes.append({"rol": "assistant", "texto": aviso_cuota})
-        else:
-            st.error(f"Ocurrió un problema general. Detalle: {e}")
+        st.error(f"Ocurrió un problema técnico. Detalle: {e}")
