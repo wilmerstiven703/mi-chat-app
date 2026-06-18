@@ -28,6 +28,14 @@ modelo_seleccionado = st.sidebar.selectbox(
     help="El modelo 8b es ultra rápido; el 70b es ideal para tareas complejas."
 )
 
+# NUEVO: Selector de Personalidad/Rol
+rol_seleccionado = st.sidebar.selectbox(
+    "Elige la personalidad de la IA:",
+    options=["Asistente de Wilmer", "Programador Experto 💻", "Traductor Pro 🌐", "Profesor Divertido 🎓"],
+    index=0,
+    help="Cambia el rol y el comportamiento de la IA."
+)
+
 # Control deslizante para limitar la memoria del chat
 mensajes_a_recordar = st.sidebar.slider(
     "Cantidad de mensajes a recordar:",
@@ -49,7 +57,7 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario y respuesta de la IA (Con Memoria Ajustable y Streaming Seguro)
+# 5. Entrada del usuario y respuesta de la IA (Con Roles Dinámicos)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     # Mostrar y guardar mensaje del usuario
     with st.chat_message("user"):
@@ -60,13 +68,18 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         # Iniciamos el cliente oficial de Groq
         client = Groq()
         
-        # Mensaje del sistema inicial
-        historial_completo = [
-            {
-                "role": "system", 
-                "content": "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
-            }
-        ]
+        # NUEVO: Diccionario para definir el System Prompt según el rol elegido
+        prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
+        
+        if rol_seleccionado == "Programador Experto 💻":
+            prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros en bloques de código."
+        elif rol_seleccionado == "Traductor Pro 🌐":
+            prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma, corregir gramática y explicar modismos locales de forma clara."
+        elif rol_seleccionado == "Profesor Divertido 🎓":
+            prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles (ciencia, historia, matemáticas) usando analogías simples, chistes y un tono muy motivador."
+
+        # Mensaje del sistema inicial configurado dinámicamente
+        historial_completo = [{"role": "system", "content": prompt_sistema}]
         
         # Recortamos el historial usando el valor del slider (los últimos X mensajes)
         historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
@@ -86,9 +99,8 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                     stream=True,
                 )
                 for chunk in stream:
-                    # CORRECCIÓN DE LA API: Acceso seguro a las opciones de respuesta del stream
                     if chunk.choices and len(chunk.choices) > 0:
-                        contenido = chunk.choices[0].delta.content
+                        contenido = chunk.choices.delta.content
                         if contenido:
                             yield contenido
 
