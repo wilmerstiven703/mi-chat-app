@@ -28,7 +28,7 @@ modelo_seleccionado = st.sidebar.selectbox(
     help="El modelo 8b es ultra rápido; el 70b es ideal para tareas complejas."
 )
 
-# NUEVO: Control deslizante para limitar la memoria del chat
+# Control deslizante para limitar la memoria del chat
 mensajes_a_recordar = st.sidebar.slider(
     "Cantidad de mensajes a recordar:",
     min_value=2,
@@ -49,7 +49,7 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario y respuesta de la IA (Con Memoria Ajustable)
+# 5. Entrada del usuario y respuesta de la IA (Con Memoria Ajustable y Streaming Seguro)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     # Mostrar y guardar mensaje del usuario
     with st.chat_message("user"):
@@ -68,7 +68,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             }
         ]
         
-        # NUEVO: Recortamos el historial usando el valor del slider (los últimos X mensajes)
+        # Recortamos el historial usando el valor del slider (los últimos X mensajes)
         historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
         
         # Mapeo limpio y seguro para la API de Groq
@@ -86,10 +86,13 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                     stream=True,
                 )
                 for chunk in stream:
-                    contenido = chunk.choices.delta.content
-                    if contenido:
-                        yield contenido
+                    # CORRECCIÓN DE LA API: Acceso seguro a las opciones de respuesta del stream
+                    if chunk.choices and len(chunk.choices) > 0:
+                        contenido = chunk.choices[0].delta.content
+                        if contenido:
+                            yield contenido
 
+            # Streamlit renderiza las palabras en pantalla en tiempo real
             respuesta_texto = st.write_stream(generar_respuesta())
             
         # Guardamos la respuesta final en el historial completo
