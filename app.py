@@ -79,7 +79,7 @@ mensajes_a_recordar = st.sidebar.slider(
 
 st.sidebar.markdown("---")
 
-# NUEVO: Panel de Estadísticas en tiempo real
+# Panel de Estadísticas en tiempo real
 st.sidebar.subheader("📊 Estadísticas de la Sesión")
 
 # Calculamos el total de palabras acumuladas en el chat
@@ -151,9 +151,11 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             f"Teniendo en cuenta ese archivo, responde a la siguiente petición del usuario: {pregunta_usuario}"
         )
 
-    # En la pantalla solo mostramos el mensaje limpio del usuario
+    # Mostrar inmediatamente en pantalla el mensaje del usuario
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
+    
+    # Guardamos en la memoria interna
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
     try:
@@ -205,9 +207,8 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             # Streamlit renderiza las palabras en pantalla en tiempo real
             respuesta_texto = st.write_stream(generar_respuesta())
             
-        # Guardamos la respuesta final en el historial completo
+        # Guardamos la respuesta final en el historial completo (Sin hacer rerun para evitar congelamientos)
         st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
-        st.rerun()
         
     except Exception as e:
         st.error(f"Ocurrió un problema técnico. Detalle: {e}")
