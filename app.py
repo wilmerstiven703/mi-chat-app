@@ -27,7 +27,7 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario y respuesta de la IA (Llama 3 de Meta)
+# 5. Entrada del usuario y respuesta de la IA (Llama 3.1)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     # Mostrar y guardar mensaje del usuario
     with st.chat_message("user"):
@@ -51,15 +51,12 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             rol_api = "user" if msg["rol"] == "user" else "assistant"
             historial_completo.append({"role": rol_api, "content": msg["texto"]})
             
-        # Llamamos al modelo ultra rápido Llama 3
+        # Llamamos al modelo activo Llama 3.1 (Solución al error anterior)
         with st.spinner("⚡ Pensando a la velocidad de la luz..."):
-            # ASÍ ESTÁ AHORA (ERROR):
-       respuesta_api = client.chat.completions.create(
-       model="llama3-8b-8192",
-       messages=historial_completo,
-        temperature=0.7,
-)
-
+            respuesta_api = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=historial_completo,
+                temperature=0.7,
             )
             
         respuesta_texto = respuesta_api.choices[0].message.content
