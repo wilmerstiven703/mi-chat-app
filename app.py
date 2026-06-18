@@ -18,7 +18,7 @@ if "historial_mensajes" not in st.session_state:
 
 # BARRA LATERAL: Opción para subir imágenes
 st.sidebar.header("📸 Superpoder de Visión")
-imagen_subida = st.sidebar.file_uploader("Sube una foto para que el bot la analice:", type=["jpg", "jpeg", "png", "webp", "bmp", "gif"]
+imagen_subida = st.sidebar.file_uploader("Sube una foto para que el bot la analice:", type=["jpg", "jpeg", "png", "webp", "bmp", "gif"])
                                          
 if imagen_subida is not None:
     imagen_pil = PIL.Image.open(imagen_subida)
