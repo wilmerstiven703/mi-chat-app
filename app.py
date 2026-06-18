@@ -139,54 +139,50 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario y respuesta de la IA (Con Roles Dinámicos y Archivos adjuntos)
+# 5. Entrada del usuario y respuesta de la IA (Estructura Limpia Garantizada)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     
-    # Si hay un archivo subido, modificamos la pregunta del usuario para incluirlo discretamente
-    pregunta_final_api = pregunta_usuario
-    if contenido_archivo:
-        pregunta_final_api = (
-            f"El usuario ha adjuntado un archivo llamado '{archivo_subido.name}' con el siguiente contenido:\n"
-            f"```\n{contenido_archivo}\n```\n"
-            f"Teniendo en cuenta ese archivo, responde a la siguiente petición del usuario: {pregunta_usuario}"
-        )
-
-    # Mostrar inmediatamente en pantalla el mensaje del usuario
+    # Mostrar inmediatamente en pantalla el mensaje visual del usuario
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
     
-    # Guardamos en la memoria interna
+    # Lo agregamos al historial general
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
     try:
-        # Iniciamos el cliente oficial de Groq
+        # Inicializamos el cliente de Groq
         client = Groq()
         
-        # Diccionario para definir el System Prompt según el rol elegido
+        # 1. Definir el System Prompt según el rol seleccionado
         prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
-        
         if rol_seleccionado == "Programador Experto 💻":
             prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros en bloques de código."
         elif rol_seleccionado == "Traductor Pro 🌐":
             prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma, corregir gramática y explicar modismos locales de forma clara."
         elif rol_seleccionado == "Profesor Divertido 🎓":
-            prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles (ciencia, historia, matemáticas) usando analogías simples, chistes y un tono muy motivador."
+            prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles usando analogías simples, chistes y un tono muy motivador."
 
-        # Mensaje del sistema inicial configurado dinámicamente
+        # Iniciamos el paquete que va a la API con el rol del sistema
         historial_completo = [{"role": "system", "content": prompt_sistema}]
         
-        # Recortamos el historial usando el valor del slider (los últimos X mensajes)
+        # 2. Construimos la memoria recortada basada en los últimos mensajes del historial
         historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
         
-        # Mapeo limpio y seguro para la API de Groq
-        for msg in historial_recortado[:-1]: 
+        # Agregamos los mensajes previos formateados correctamente para Groq
+        for msg in historial_recortado:
             rol_api = "user" if msg["rol"] == "user" else "assistant"
-            historial_completo.append({"role": rol_api, "content": msg["texto"]})
+            # Si es el mensaje actual del usuario y hay un archivo, le inyectamos el archivo de forma segura
+            if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
+                texto_con_archivo = (
+                    f"El usuario ha adjuntado un archivo llamado '{archivo_subido.name}' con el siguiente contenido:\n"
+                    f"```\n{contenido_archivo}\n```\n"
+                    f"Teniendo en cuenta ese archivo, responde a la siguiente petición: {msg['texto']}"
+                )
+                historial_completo.append({"role": "user", "content": texto_con_archivo})
+            else:
+                historial_completo.append({"role": rol_api, "content": msg["texto"]})
             
-        # Reemplazamos el último mensaje por la versión que contiene el archivo adjunto
-        historial_completo.append({"role": "user", "content": pregunta_final_api})
-            
-        # Llamamos al modelo seleccionado con flujo en tiempo real
+        # 3. Llamada streaming a la API de Groq
         with st.chat_message("assistant"):
             def generar_respuesta():
                 stream = client.chat.completions.create(
@@ -204,11 +200,14 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                     except Exception:
                         continue
 
-            # Streamlit renderiza las palabras en pantalla en tiempo real
+            # Renderizar flujo en pantalla
             respuesta_texto = st.write_stream(generar_respuesta())
             
-        # Guardamos la respuesta final en el historial completo (Sin hacer rerun para evitar congelamientos)
+        # Guardamos la respuesta del asistente en el historial general
         st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
         
+        # Forzar recarga limpia solo de contadores métricos laterales sin romper el flujo
+        st.layer() if hasattr(st, "layer") else st.rerun()
+
     except Exception as e:
         st.error(f"Ocurrió un problema técnico. Detalle: {e}")
