@@ -27,7 +27,7 @@ if imagen_subida is not None:
 
 st.sidebar.markdown("---")
 st.sidebar.header("🎨 Superpoder de Dibujo")
-st.sidebar.info("Para que dibuje, empieza tu mensaje con la palabra **'dibuja'** o **'crea una imagen'**.")
+st.sidebar.info("Para que dibuje, empieza tu mensaje con la palabra **'dibuja'**.")
 
 if st.sidebar.button("🧹 Limpiar conversación"):
     st.session_state.historial_mensajes = []
@@ -42,7 +42,7 @@ for mensaje in st.session_state.historial_mensajes:
             st.markdown(mensaje["texto"])
 
 # 5. Entrada del usuario y respuesta de la IA
-if pregunta_usuario := st.chat_input("Escribe aquí... (ej: 'dibuja un gato espacial' o habla normalmente)"):
+if pregunta_usuario := st.chat_input("Escribe tu mensaje o pregunta aquí..."):
     # Mostrar mensaje del usuario
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
@@ -52,30 +52,39 @@ if pregunta_usuario := st.chat_input("Escribe aquí... (ej: 'dibuja un gato espa
         client = genai.Client()
         texto_minuscula = pregunta_usuario.lower()
         
-        # ¿EL USUARIO QUIERE QUE DIBUJE? (Detección de palabras clave)
-        if texto_minuscula.startswith("dibuja") or "crea una imagen" in texto_minuscula or "haz un dibujo" in texto_minuscula:
-            with st.spinner("🤖 Dibujando tu idea con Imagen 3..."):
-                # Llamamos al motor de dibujo Imagen 3 de Google
-                resultado_dibujo = client.models.generate_images(
-                    model='imagen-3.0-generate-002',
-                    prompt=pregunta_usuario,
-                    config=types.GenerateImagesConfig(
-                        number_of_images=1,
-                        output_mime_type="image/jpeg",
-                        aspect_ratio="1:1"
+        # ¿EL USUARIO QUIERE QUE DIBUJE?
+        if texto_minuscula.startswith("dibuja") or "crea una imagen" in texto_minuscula:
+            with st.spinner("🤖 Intentando conectar con el motor de dibujo..."):
+                try:
+                    # Intenta llamar al motor de dibujo Imagen 3
+                    resultado_dibujo = client.models.generate_images(
+                        model='imagen-3.0-generate-002',
+                        prompt=pregunta_usuario,
+                        config=types.GenerateImagesConfig(
+                            number_of_images=1,
+                            output_mime_type="image/jpeg",
+                            aspect_ratio="1:1"
+                        )
                     )
-                )
+                    bytes_imagen = resultado_dibujo.generated_images.image.image_bytes
+                    imagen_creada = PIL.Image.open(io.BytesIO(bytes_imagen))
+                    
+                    with st.chat_message("assistant"):
+                        st.image(imagen_creada, caption="¡Aquí tienes tu dibujo!", width=400)
+                    st.session_state.historial_mensajes.append({"rol": "assistant", "texto": imagen_creada, "es_imagen": True})
                 
-                # Extraemos la imagen de los bytes que nos manda Google
-                bytes_imagen = resultado_dibujo.generated_images[0].image.image_bytes
-                imagen_creada = PIL.Image.open(io.BytesIO(bytes_imagen))
-                
-                # Mostrar la imagen en el chat
-                with st.chat_message("assistant"):
-                    st.image(imagen_creada, caption="¡Aquí tienes tu dibujo!", width=400)
-                
-                # Guardamos en la memoria que es una imagen para que no se borre al recargar
-                st.session_state.historial_mensajes.append({"rol": "assistant", "texto": imagen_creada, "es_imagen": True})
+                except Exception as error_api:
+                    # SI LA LLAVE GRATUITA NO TIENE PERMISO DE DIBUJO, LA IA RESPONDE CON TEXTO AMIGABLEMENTE
+                    respuesta_alternativa = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=f"El usuario te pidió dibujar esto: '{pregunta_usuario}'. Explícale amigablemente que tu creador Wilmer te programó la función de dibujo, pero que la API Key actual es de la versión gratuita de Google AI Studio y no tiene los permisos premium activados para generar imágenes. Dile qué podrías escribirle en texto en su lugar.",
+                        config=types.GenerateContentConfig(
+                            system_instruction="Eres un chatbot amigable creado por Wilmer."
+                        )
+                    )
+                    with st.chat_message("assistant"):
+                        st.markdown(respuesta_alternativa.text)
+                    st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_alternativa.text})
         
         # SI ES UNA CONVERSACIÓN NORMAL O ANÁLISIS DE FOTO
         else:
@@ -88,7 +97,7 @@ if pregunta_usuario := st.chat_input("Escribe aquí... (ej: 'dibuja un gato espa
                 model="gemini-2.5-flash",
                 contents=elementos_a_enviar,
                 config=types.GenerateContentConfig(
-                    system_instruction="Eres el mejor chatbot del mundo. Hablas español, eres divertido y puedes ver imágenes detalladamente. Si el usuario te pide dibujar, recuérdale usar la palabra 'dibuja' al inicio."
+                    system_instruction="Eres el mejor chatbot del mundo. Hablas español, eres divertido y puedes ver imágenes detalladamente. Tu creador es un gran programador llamado Wilmer."
                 )
             )
             
@@ -97,4 +106,4 @@ if pregunta_usuario := st.chat_input("Escribe aquí... (ej: 'dibuja un gato espa
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta.text})
             
     except Exception as e:
-        st.error(f"Ocurrió un problema. Detalle: {e}")
+        st.error(f"Ocurrió un problema general. Detalle: {e}")
