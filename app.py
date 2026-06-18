@@ -56,7 +56,6 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje o pregunta aquí..."):
         if texto_minuscula.startswith("dibuja") or "crea una imagen" in texto_minuscula:
             with st.spinner("🤖 Intentando conectar con el motor de dibujo..."):
                 try:
-                    # Intenta llamar al motor de dibujo Imagen 3
                     resultado_dibujo = client.models.generate_images(
                         model='imagen-3.0-generate-002',
                         prompt=pregunta_usuario,
@@ -74,7 +73,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje o pregunta aquí..."):
                     st.session_state.historial_mensajes.append({"rol": "assistant", "texto": imagen_creada, "es_imagen": True})
                 
                 except Exception as error_api:
-                    # SI LA LLAVE GRATUITA NO TIENE PERMISO DE DIBUJO, LA IA RESPONDE CON TEXTO AMIGABLEMENTE
+                    # Protección por si no tiene permisos de dibujo
                     respuesta_alternativa = client.models.generate_content(
                         model="gemini-2.5-flash",
                         contents=f"El usuario te pidió dibujar esto: '{pregunta_usuario}'. Explícale amigablemente que tu creador Wilmer te programó la función de dibujo, pero que la API Key actual es de la versión gratuita de Google AI Studio y no tiene los permisos premium activados para generar imágenes. Dile qué podrías escribirle en texto en su lugar.",
@@ -106,4 +105,11 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje o pregunta aquí..."):
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta.text})
             
     except Exception as e:
-        st.error(f"Ocurrió un problema general. Detalle: {e}")
+        # CONTROL DE ERRORES INTELIGENTE: Si se agota la cuota gratuita, muestra este aviso estético
+        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+            aviso_cuota = "⚠️ **¡Hola! Hemos alcanzado el límite de 20 mensajes gratuitos permitidos por Google para el día de hoy.** El sistema se restablecerá automáticamente en unas horas o el día de mañana. ¡Gracias por usar la aplicación de Wilmer! 🤖"
+            with st.chat_message("assistant"):
+                st.markdown(aviso_cuota)
+            st.session_state.historial_mensajes.append({"rol": "assistant", "texto": aviso_cuota})
+        else:
+            st.error(f"Ocurrió un problema general. Detalle: {e}")
