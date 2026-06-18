@@ -9,6 +9,9 @@ st.title("⚡ Mi Súper Chatbot de Alta Velocidad (Mensajes Ilimitados)")
 # 2. Conexión segura con los secretos de Streamlit
 if "GROQ_API_KEY" in st.secrets:
     os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+elif not os.environ.get("GROQ_API_KEY"):
+    st.error("Por favor, configura la variable de entorno o secreto GROQ_API_KEY.")
+    st.stop()
 
 # 3. Inicializar el historial de mensajes en la memoria web
 if "historial_mensajes" not in st.session_state:
@@ -26,6 +29,7 @@ for mensaje in st.session_state.historial_mensajes:
 
 # 5. Entrada del usuario y respuesta de la IA (Llama 3 de Meta)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
+    # Mostrar y guardar mensaje del usuario
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
@@ -36,21 +40,28 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         
         # Estructuramos el historial para que la IA recuerde el contexto
         historial_completo = [
-            {"role": "system", "content": "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente."}
+            {
+                "role": "system", 
+                "content": "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
+            }
         ]
         
+        # Mapeo limpio y seguro para la API de Groq
         for msg in st.session_state.historial_mensajes:
-            historial_completo.append({"role": msg["rol"], "content": msg["texto"]})
+            rol_api = "user" if msg["rol"] == "user" else "assistant"
+            historial_completo.append({"role": rol_api, "content": msg["texto"]})
             
-        # Llamamos al modelo ultra rápido Llama 3 (8b es el más veloz)
+        # Llamamos al modelo ultra rápido Llama 3
         with st.spinner("⚡ Pensando a la velocidad de la luz..."):
             respuesta_api = client.chat.completions.create(
                 model="llama3-8b-8192",
                 messages=historial_completo,
+                temperature=0.7,
             )
             
         respuesta_texto = respuesta_api.choices[0].message.content
         
+        # Mostrar y guardar respuesta del asistente
         with st.chat_message("assistant"):
             st.markdown(respuesta_texto)
         st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
