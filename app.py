@@ -5,44 +5,35 @@ from groq import Groq
 # 1. Configuración de la aplicación web
 st.set_page_config(page_title="Mi Súper Chatbot Groq", page_icon="⚡", layout="wide")
 
-# --- NUEVO: DISEÑO VISUAL AVANZADO (CSS PERSONALIZADO) ---
-st.markdown("""
+# --- DISEÑO VISUAL CORREGIDO CON ST.HTML ---
+st.html("""
     <style>
     /* Fondo principal de la app */
     .stApp {
-        background-color: #0d1117;
-        color: #c9d1d9;
+        background-color: #0d1117 !important;
+        color: #c9d1d9 !important;
     }
     
     /* Estilo del título principal */
     h1 {
         color: #00ff66 !important;
-        font-family: 'Courier New', Courier, monospace;
-        text-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
-        font-weight: bold;
+        font-family: 'Courier New', Courier, monospace !important;
+        text-shadow: 0 0 10px rgba(0, 255, 102, 0.5) !important;
     }
     
     /* Personalización de la barra lateral */
     [data-testid="stSidebar"] {
         background-color: #161b22 !important;
-        border-right: 2px solid #00ff66;
+        border-right: 2px solid #00ff66 !important;
     }
     
     /* Textos dentro de la barra lateral */
     [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {
         color: #00ff66 !important;
-        font-family: 'Courier New', Courier, monospace;
-    }
-    
-    /* Estilo para los bloques de código */
-    code {
-        color: #ff79c6 !important;
-        background-color: #282a36 !important;
-        padding: 2px 6px;
-        border-radius: 4px;
+        font-family: 'Courier New', Courier, monospace !important;
     }
     </style>
-""", unsafe_allowed_html=True)
+""")
 
 st.title("⚡ Mi Súper Chatbot de Alta Velocidad")
 
@@ -161,7 +152,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         if rol_seleccionado == "Programador Experto 💻":
             prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros en bloques de código."
         elif rol_seleccionado == "Traductor Pro 🌐":
-            prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma, corregir gramática y explicar modismos locales de forma clara."
+            prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma, corregir gramática y explicar modismos locales de forma cara."
         elif rol_seleccionado == "Profesor Divertido 🎓":
             prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles (ciencia, historia, matemáticas) usando analogías simples, chistes y un tono muy motivador."
 
@@ -191,7 +182,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                 for chunk in stream:
                     try:
                         if chunk.choices and len(chunk.choices) > 0:
-                            contenido = chunk.choices[0].delta.content
+                            contenido = chunk.choices.delta.content
                             if contenido:
                                 yield contenido
                     except Exception:
