@@ -53,10 +53,13 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             
         # Llamamos al modelo ultra rápido Llama 3
         with st.spinner("⚡ Pensando a la velocidad de la luz..."):
-            respuesta_api = client.chat.completions.create(
-                model="llama3-8b-8192",
-                messages=historial_completo,
-                temperature=0.7,
+            # ASÍ ESTÁ AHORA (ERROR):
+       respuesta_api = client.chat.completions.create(
+       model="llama3-8b-8192",
+       messages=historial_completo,
+        temperature=0.7,
+)
+
             )
             
         respuesta_texto = respuesta_api.choices[0].message.content
