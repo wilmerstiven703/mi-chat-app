@@ -48,7 +48,7 @@ mensajes_a_recordar = st.sidebar.slider(
 
 st.sidebar.markdown("---")
 
-# NUEVO: Subidor de archivos en la barra lateral
+# Subidor de archivos en la barra lateral
 st.sidebar.subheader("📂 Analizar Documento o Código")
 archivo_subido = st.sidebar.file_uploader(
     "Sube un archivo de texto o código:", 
@@ -59,7 +59,6 @@ archivo_subido = st.sidebar.file_uploader(
 contenido_archivo = ""
 if archivo_subido is not None:
     try:
-        # Leemos el archivo subido y lo convertimos a texto legible
         contenido_archivo = archivo_subido.read().decode("utf-8")
         st.sidebar.success(f"¡'{archivo_subido.name}' cargado con éxito!")
     except Exception as e:
@@ -98,7 +97,7 @@ for mensaje in st.session_state.historial_mensajes:
 # 5. Entrada del usuario y respuesta de la IA (Con Roles Dinámicos y Archivos adjuntos)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     
-    # NUEVO: Si hay un archivo subido, modificamos la pregunta del usuario para incluirlo discretamente
+    # Si hay un archivo subido, modificamos la pregunta del usuario para incluirlo discretamente
     pregunta_final_api = pregunta_usuario
     if contenido_archivo:
         pregunta_final_api = (
@@ -107,7 +106,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             f"Teniendo en cuenta ese archivo, responde a la siguiente petición del usuario: {pregunta_usuario}"
         )
 
-    # En la pantalla solo mostramos el mensaje limpio del usuario para que se vea estético
+    # En la pantalla solo mostramos el mensaje limpio del usuario
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
@@ -133,14 +132,14 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
         
         # Mapeo limpio y seguro para la API de Groq
-        for msg in historial_recortado[:-1]: # Metemos todo el historial viejo tal cual
+        for msg in historial_recortado[:-1]: 
             rol_api = "user" if msg["rol"] == "user" else "assistant"
             historial_completo.append({"role": rol_api, "content": msg["texto"]})
             
-        # NUEVO: Reemplazamos el último mensaje por la versión que contiene el archivo adjunto
+        # Reemplazamos el último mensaje por la versión que contiene el archivo adjunto
         historial_completo.append({"role": "user", "content": pregunta_final_api})
             
-        # Llamamos al modelo seleccionado con flujo en tiempo real (Streaming)
+        # Llamamos al modelo seleccionado con flujo en tiempo real
         with st.chat_message("assistant"):
             def generar_respuesta():
                 stream = client.chat.completions.create(
@@ -150,10 +149,15 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                     stream=True,
                 )
                 for chunk in stream:
-                    if hasattr(chunk, 'choices') and chunk.choices:
-                        contenido = chunk.choices.delta.content
-                        if contenido:
-                            yield contenido
+                    # BLINDAJE DEFINITIVO CONTRA EL ERROR 'delta'
+                    try:
+                        if chunk.choices and len(chunk.choices) > 0:
+                            contenido = chunk.choices[0].delta.content  # <--- Acceso por índice explícito
+                            if contenido:
+                                yield contenido
+                    except Exception:
+                        # Si un paquete de cierre viene mal estructurado, se ignora de forma segura
+                        continue
 
             # Streamlit renderiza las palabras en pantalla en tiempo real
             respuesta_texto = st.write_stream(generar_respuesta())
