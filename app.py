@@ -48,6 +48,26 @@ mensajes_a_recordar = st.sidebar.slider(
 
 st.sidebar.markdown("---")
 
+# NUEVO: Función para formatear el historial y hacerlo un texto descargable
+def formatear_historial_txt():
+    texto_final = "=== HISTORIAL DE CHAT - BOT DE WILMER ===\n\n"
+    for msg in st.session_state.historial_mensajes:
+        rol = "Usuario" if msg["rol"] == "user" else "Asistente"
+        texto_final += f"[{rol}]: {msg['texto']}\n"
+        texto_final += "-" * 40 + "\n"
+    return texto_final
+
+# NUEVO: Botón de descarga inteligente (solo aparece si hay mensajes en el chat)
+if st.session_state.historial_mensajes:
+    chat_en_texto = formatear_historial_txt()
+    st.sidebar.download_button(
+        label="💾 Descargar conversación (.txt)",
+        data=chat_en_texto,
+        file_name="historial_chat_wilmer.txt",
+        mime="text/plain",
+        help="Guarda todo lo hablado en un archivo de texto en tu dispositivo."
+    )
+
 if st.sidebar.button("Toque para borrar chat"):
     st.session_state.historial_mensajes = []
     st.rerun()
@@ -89,7 +109,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             rol_api = "user" if msg["rol"] == "user" else "assistant"
             historial_completo.append({"role": rol_api, "content": msg["texto"]})
             
-        # Llamamos al modelo seleccionado con flujo en tiempo real (Streaming Blindado)
+        # Llamamos al modelo seleccionado con flujo en tiempo real (Streaming)
         with st.chat_message("assistant"):
             def generar_respuesta():
                 stream = client.chat.completions.create(
@@ -99,7 +119,6 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                     stream=True,
                 )
                 for chunk in stream:
-                    # SOLUCIÓN DEFINITIVA: Acceso directo por índice al contenido del fragmento
                     if hasattr(chunk, 'choices') and chunk.choices:
                         contenido = chunk.choices[0].delta.content
                         if contenido:
@@ -110,6 +129,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             
         # Guardamos la respuesta final en el historial completo
         st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
+        st.rerun() # Volvemos a renderizar para que el botón de descarga se actualice de inmediato
         
     except Exception as e:
         st.error(f"Ocurrió un problema técnico. Detalle: {e}")
