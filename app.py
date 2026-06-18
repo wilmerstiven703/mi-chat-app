@@ -48,7 +48,26 @@ mensajes_a_recordar = st.sidebar.slider(
 
 st.sidebar.markdown("---")
 
-# NUEVO: Función para formatear el historial y hacerlo un texto descargable
+# NUEVO: Subidor de archivos en la barra lateral
+st.sidebar.subheader("📂 Analizar Documento o Código")
+archivo_subido = st.sidebar.file_uploader(
+    "Sube un archivo de texto o código:", 
+    type=["txt", "py", "js", "html", "css", "md", "json"],
+    help="Sube tu código o notas para que la IA los analice."
+)
+
+contenido_archivo = ""
+if archivo_subido is not None:
+    try:
+        # Leemos el archivo subido y lo convertimos a texto legible
+        contenido_archivo = archivo_subido.read().decode("utf-8")
+        st.sidebar.success(f"¡'{archivo_subido.name}' cargado con éxito!")
+    except Exception as e:
+        st.sidebar.error("No se pudo leer el archivo. Asegúrate de que sea texto plano.")
+
+st.sidebar.markdown("---")
+
+# Función para formatear el historial y hacerlo un texto descargable
 def formatear_historial_txt():
     texto_final = "=== HISTORIAL DE CHAT - BOT DE WILMER ===\n\n"
     for msg in st.session_state.historial_mensajes:
@@ -57,15 +76,14 @@ def formatear_historial_txt():
         texto_final += "-" * 40 + "\n"
     return texto_final
 
-# NUEVO: Botón de descarga inteligente (solo aparece si hay mensajes en el chat)
+# Botón de descarga inteligente
 if st.session_state.historial_mensajes:
     chat_en_texto = formatear_historial_txt()
     st.sidebar.download_button(
         label="💾 Descargar conversación (.txt)",
         data=chat_en_texto,
         file_name="historial_chat_wilmer.txt",
-        mime="text/plain",
-        help="Guarda todo lo hablado en un archivo de texto en tu dispositivo."
+        mime="text/plain"
     )
 
 if st.sidebar.button("Toque para borrar chat"):
@@ -77,9 +95,19 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario y respuesta de la IA (Con Roles Dinámicos)
+# 5. Entrada del usuario y respuesta de la IA (Con Roles Dinámicos y Archivos adjuntos)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
-    # Mostrar y guardar mensaje del usuario
+    
+    # NUEVO: Si hay un archivo subido, modificamos la pregunta del usuario para incluirlo discretamente
+    pregunta_final_api = pregunta_usuario
+    if contenido_archivo:
+        pregunta_final_api = (
+            f"El usuario ha adjuntado un archivo llamado '{archivo_subido.name}' con el siguiente contenido:\n"
+            f"```\n{contenido_archivo}\n```\n"
+            f"Teniendo en cuenta ese archivo, responde a la siguiente petición del usuario: {pregunta_usuario}"
+        )
+
+    # En la pantalla solo mostramos el mensaje limpio del usuario para que se vea estético
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
@@ -105,9 +133,12 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
         
         # Mapeo limpio y seguro para la API de Groq
-        for msg in historial_recortado:
+        for msg in historial_recortado[:-1]: # Metemos todo el historial viejo tal cual
             rol_api = "user" if msg["rol"] == "user" else "assistant"
             historial_completo.append({"role": rol_api, "content": msg["texto"]})
+            
+        # NUEVO: Reemplazamos el último mensaje por la versión que contiene el archivo adjunto
+        historial_completo.append({"role": "user", "content": pregunta_final_api})
             
         # Llamamos al modelo seleccionado con flujo en tiempo real (Streaming)
         with st.chat_message("assistant"):
@@ -120,7 +151,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                 )
                 for chunk in stream:
                     if hasattr(chunk, 'choices') and chunk.choices:
-                        contenido = chunk.choices[0].delta.content
+                        contenido = chunk.choices.delta.content
                         if contenido:
                             yield contenido
 
@@ -129,7 +160,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             
         # Guardamos la respuesta final en el historial completo
         st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
-        st.rerun() # Volvemos a renderizar para que el botón de descarga se actualice de inmediato
+        st.rerun()
         
     except Exception as e:
         st.error(f"Ocurrió un problema técnico. Detalle: {e}")
