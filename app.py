@@ -53,7 +53,7 @@ if "codigo_corregido" not in st.session_state:
 if "manual_readme" not in st.session_state:
     st.session_state.manual_readme = ""
 
-# --- FUNCIÓN GLOBAL DE STREAMING REPARADA ---
+# --- FUNCIÓN GLOBAL DE STREAMING ---
 def ejecutar_stream_groq(modelo, mensajes, temperatura):
     try:
         client = Groq()
@@ -134,7 +134,6 @@ if archivo_subido is not None:
 if contenido_archivo:
     col_fix, col_doc = st.sidebar.columns(2)
     
-    # Opción A: Reparador de Bugs
     with col_fix:
         if st.button("🛠️ Reparar Bugs"):
             st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Repara los errores de mi archivo: `{archivo_subido.name}`"})
@@ -154,29 +153,26 @@ if contenido_archivo:
                     st.session_state.codigo_corregido = codigo_limpio
                 else:
                     st.session_state.codigo_corregido = respuesta_texto
-                st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Código analizado y corregido con éxito! Puedes descargarlo en la barra lateral."})
-                st.rerun()
+                st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Código analizado y corregido con éxito!"})
 
-    # Opción B: NUEVO Generador de Documentación (README)
     with col_doc:
         if st.button("📝 Crear README"):
             st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Genera la documentación para mi archivo: `{archivo_subido.name}`"})
             prompt_readme = (
                 f"Eres un documentador técnico profesional. Analiza el siguiente código y genera un manual de usuario "
-                f"profesional en formato Markdown (README.md). Debe incluir: Nombre del proyecto, Descripción clara de qué hace, "
-                f"Requisitos, Funciones explicadas y Guía de uso rápido. Entrega exclusivamente el formato del manual:\n\n"
+                f"profesional en formato Markdown (README.md). Debe incluir: Nombre del proyecto, Descripción clara, "
+                f"Funciones explicadas y Guía de uso rápido. Entrega exclusivamente el formato del manual:\n\n"
                 f"Código:\n```\n{contenido_archivo}\n```"
             )
             with st.chat_message("assistant"):
                 respuesta_readme = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_readme}], 0.5)
             if respuesta_readme:
                 st.session_state.manual_readme = respuesta_readme
-                st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Documentación profesional generada! Ya puedes descargar tu archivo README.md en el panel lateral."})
-                st.rerun()
+                st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Documentación profesional generada!"})
 
 st.sidebar.markdown("---")
 
-# Módulo de Descargas Dinámicas de Herramientas
+# Descargas Dinámicas
 if st.session_state.codigo_corregido:
     st.sidebar.download_button(
         label="📥 Descargar Script REPARADO", data=st.session_state.codigo_corregido, file_name=nombre_archivo, mime="text/plain"
@@ -187,7 +183,7 @@ if st.session_state.manual_readme:
         label="📝 Descargar Manual README.md", data=st.session_state.manual_readme, file_name="README.md", mime="text/plain"
     )
 
-# Botones de Utilidades de Historial
+# Utilidades de Historial
 if st.session_state.historial_mensajes:
     st.sidebar.markdown("---")
     chat_en_texto = "=== HISTORIAL BOT DE WILMER ===\n\n"
@@ -202,19 +198,19 @@ if st.sidebar.button("Toque para borrar chat"):
     st.session_state.manual_readme = ""
     st.rerun()
 
-# 4. Mostrar mensajes anteriores
+# 4. Mostrar mensajes anteriores de manera persistente
 for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar
+# 5. Entrada del usuario estándar (NATIVA Y SIN REFRESCAR)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
     
-    prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
+    prompt_sistema = "Eres un chatbot ultra rápido, divertido y expert en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
         prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código con ejemplos claros."
     elif rol_seleccionado == "Traductor Pro 🌐":
@@ -225,3 +221,6 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     historial_completo = [{"role": "system", "content": prompt_sistema}]
     historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
     
+    for msg in historial_recortado:
+        rol_api = "user" if msg["rol"] == "user" else "assistant"
+        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
