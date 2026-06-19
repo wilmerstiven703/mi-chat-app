@@ -234,3 +234,7 @@ if prompt_usuario := st.chat_input("¿En qué te puedo colaborar hoy?"):
         
     if resultado["texto"]:
         st.session_state.historial_mensajes.append({
+            git add app.py
+git commit -m "Solucionar error de sintaxis en el historial"
+git push origin main
+
