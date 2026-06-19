@@ -118,7 +118,7 @@ if archivo_subido is not None:
     except Exception:
         st.sidebar.error("Asegúrate de que sea texto plano o código.")
 
-# NUEVO: Botón inteligente Auto-Bug Fixer
+# Botón inteligente Auto-Bug Fixer
 if contenido_archivo:
     if st.sidebar.button("🛠️ Buscar y reparar Bugs"):
         with st.chat_message("user"):
@@ -140,16 +140,16 @@ if contenido_archivo:
                 respuesta_texto = ""
                 
                 stream = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",  # Forzamos el modelo potente para reparar código
+                    model="llama-3.3-70b-versatile",
                     messages=[{"role": "user", "content": prompt_fixer}],
-                    temperature=0.1,  # Temperatura ultra baja para máxima precisión matemática
+                    temperature=0.1,
                     stream=True,
                 )
                 
                 for chunk in stream:
                     try:
                         if chunk.choices and len(chunk.choices) > 0:
-                            contenido = chunk.choices.delta.content  
+                            contenido = chunk.choices[0].delta.content  
                             if contenido:
                                 respuesta_texto += contenido
                                 contenedor_texto.markdown(respuesta_texto)
@@ -157,18 +157,21 @@ if contenido_archivo:
                         continue
                 
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
-            # Extraemos el bloque de código limpio para guardarlo en la descarga
+            
+            # Limpieza sintáctica corregida del bloque de código markdown
             if "```" in respuesta_texto:
                 partes = respuesta_texto.split("```")
-                # Intentamos capturar el código dentro de las etiquetas markdown
-                st.session_state.codigo_corregido = partes[1].replace("python\n", "").replace("javascript\n", "")
+                codigo_limpio = partes[1]
+                for lang in ["python\n", "javascript\n", "html\n", "css\n"]:
+                    codigo_limpio = codigo_limpio.replace(lang, "")
+                st.session_state.codigo_corregido = codigo_limpio
             else:
                 st.session_state.codigo_corregido = respuesta_texto
                 
         except Exception as e:
             st.error(f"Error en el Fixer: {e}")
 
-# NUEVO: Botón para descargar exclusivamente el código reparado
+# Botón para descargar exclusivamente el código reparado
 if st.session_state.codigo_corregido:
     st.sidebar.download_button(
         label="🚀 Descargar archivo REPARADO",
@@ -239,3 +242,4 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             respuesta_texto = ""
             
             stream = client.chat.completions.create(
+                model=modelo_seleccionado,
