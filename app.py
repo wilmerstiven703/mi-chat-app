@@ -38,12 +38,12 @@ st.html("""
 
 st.title("⚡ Mi Súper Chatbot de Alta Velocidad")
 
-# 2. Conexión SEGURA con los Secretos de Streamlit
+# 2. Conexión segura con los secretos de Streamlit
 if "GROQ_API_KEY" in st.secrets:
     os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-else:
-    # Si juegas en local o no ha cargado, intenta buscarla en el sistema sin apagar la app
-    pass
+elif not os.environ.get("GROQ_API_KEY"):
+    st.error("Por favor, configura tu GROQ_API_KEY en los Secrets de Streamlit.")
+    st.stop()
 
 # 3. Inicializar el historial y el contenedor de código corregido
 if "historial_mensajes" not in st.session_state:
@@ -53,9 +53,7 @@ if "codigo_corregido" not in st.session_state:
 
 # --- FUNCIÓN GLOBAL DE STREAMING REPARADA ---
 def ejecutar_stream_groq(modelo, mensajes, temperatura):
-    """Maneja la llamada oficial a Groq usando la sintaxis moderna de streaming de forma de alta estabilidad"""
     try:
-        # Inicializa el cliente leyendo dinámicamente el entorno seguro
         client = Groq()
         contenedor_texto = st.empty()
         respuesta_texto = ""
@@ -83,51 +81,30 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
             
         return respuesta_texto
     except Exception as e:
-        st.error(f"Error de comunicación con Groq. Revisa si tu API Key en Secrets es correcta. Detalle: {e}")
+        st.error(f"Error de comunicación con Groq: {e}")
         return ""
 
 # --- BARRA LATERAL CONFIGURADA ---
 st.sidebar.header("🛠️ CONFIGURACIÓN")
 
-# Selector de modelos
 modelo_seleccionado = st.sidebar.selectbox(
     "Elige el cerebro de la IA:",
     options=["llama-3.1-8b-instant", "llama-3.3-70b-versatile"],
-    index=0,
-    help="El modelo 8b es ultra rápido; el 70b es ideal para tareas complejas."
+    index=0
 )
 
-# Selector de Personalidad/Rol
 rol_seleccionado = st.sidebar.selectbox(
     "Elige la personalidad de la IA:",
     options=["Asistente de Wilmer", "Programador Experto 💻", "Traductor Pro 🌐", "Profesor Divertido 🎓"],
-    index=0,
-    help="Cambia el rol y el comportamiento de la IA."
+    index=0
 )
 
-# Control deslizante para limitar la memoria del chat
-mensajes_a_recordar = st.sidebar.slider(
-    "Cantidad de mensajes a recordar:",
-    min_value=2,
-    max_value=20,
-    value=6,
-    step=2,
-    help="Cuántos mensajes del historial verá la IA. Un número menor ahorra tokens y acelera el chat."
-)
-
-# Control deslizante para ajustar la temperatura (Creatividad) de la IA
-temperatura_seleccionada = st.sidebar.slider(
-    "Creatividad de la IA (Temperatura):",
-    min_value=0.0,
-    max_value=1.0,
-    value=0.7,
-    step=0.1,
-    help="0.0 = Súper lógica y precisa (código). 1.0 = Muy creativa e innovadora."
-)
+mensajes_a_recordar = st.sidebar.slider("Cantidad de mensajes a recordar:", 2, 20, 6, 2)
+temperatura_seleccionada = st.sidebar.slider("Creatividad (Temperatura):", 0.0, 1.0, 0.7, 0.1)
 
 st.sidebar.markdown("---")
 
-# Panel de Estadísticas en tiempo real
+# Panel de Estadísticas
 st.sidebar.subheader("📊 Estadísticas de la Sesión")
 total_palabras = sum(len(msg["texto"].split()) for msg in st.session_state.historial_mensajes)
 st.sidebar.metric(label="Palabras procesadas:", value=f"{total_palabras}")
@@ -135,12 +112,10 @@ st.sidebar.metric(label="Mensajes enviados:", value=f"{len(st.session_state.hist
 
 st.sidebar.markdown("---")
 
-# Subidor de archivos en la barra lateral
+# Subidor de archivos
 st.sidebar.subheader("📂 Analizar Documento o Código")
 archivo_subido = st.sidebar.file_uploader(
-    "Sube un archivo de texto o código:", 
-    type=["txt", "py", "js", "html", "css", "md", "json"],
-    help="Sube tu código o notas para que la IA los analice."
+    "Sube un archivo de texto o código:", type=["txt", "py", "js", "html", "css", "md", "json"]
 )
 
 contenido_archivo = ""
@@ -153,16 +128,15 @@ if archivo_subido is not None:
     except Exception:
         st.sidebar.error("Asegúrate de que sea texto plano o código.")
 
-# Botón inteligente Auto-Bug Fixer
+# Botón Auto-Bug Fixer
 if contenido_archivo:
     if st.sidebar.button("🛠️ Buscar y reparar Bugs"):
         st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`"})
         
         prompt_fixer = (
             f"Eres un experto en ciberseguridad e Ingeniero Senior. Analiza el siguiente archivo, "
-            f"detecta bugs, vulnerabilidades o errores de lógica y corrígelos. Devuelve únicamente el código completo "
-            f"perfectamente reparado dentro de un único bloque de código markdown y da una explicación muy breve.\n\n"
-            f"Archivo: {archivo_subido.name}\n"
+            f"detecta bugs y corrígelos. Devuelve únicamente el código completo "
+            f"perfectamente reparado dentro de un único bloque de código markdown.\n\n"
             f"Contenido:\n```\n{contenido_archivo}\n```"
         )
         
@@ -178,55 +152,41 @@ if contenido_archivo:
                 st.session_state.codigo_corregido = codigo_limpio
             else:
                 st.session_state.codigo_corregido = respuesta_texto
+            
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
             st.rerun()
 
-# Botón para descargar exclusivamente el código reparado
 if st.session_state.codigo_corregido:
     st.sidebar.download_button(
-        label="🚀 Descargar archivo REPARADO",
-        data=st.session_state.codigo_corregido,
-        file_name=nombre_archivo,
-        mime="text/plain",
-        help="Descarga el script corregido directamente a tu máquina."
+        label="🚀 Descargar archivo REPARADO", data=st.session_state.codigo_corregido, file_name=nombre_archivo, mime="text/plain"
     )
 
 st.sidebar.markdown("---")
 
-# Botón para descargar historial de chat plano
 if st.session_state.historial_mensajes:
     chat_en_texto = "=== HISTORIAL BOT DE WILMER ===\n\n"
     for msg in st.session_state.historial_mensajes:
         rol = "Usuario" if msg["rol"] == "user" else "Asistente"
         chat_en_texto += f"[{rol}]: {msg['texto']}\n" + "-"*40 + "\n"
-        
-    st.sidebar.download_button(
-        label="💾 Descargar chat (.txt)",
-        data=chat_en_texto,
-        file_name="historial_chat_wilmer.txt",
-        mime="text/plain"
-    )
+    st.sidebar.download_button(label="💾 Descargar chat (.txt)", data=chat_en_texto, file_name="historial_chat_wilmer.txt", mime="text/plain")
 
 if st.sidebar.button("Toque para borrar chat"):
     st.session_state.historial_mensajes = []
     st.session_state.codigo_corregido = ""
     st.rerun()
 
-# 4. Mostrar todos los mensajes anteriores en la pantalla de manera persistente
+# 4. Mostrar mensajes anteriores
 for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (NATIVA Y CON SECRETS)
+# 5. Entrada del usuario estándar (ESTRUCTURA ORIGINAL LIMPIA)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
-    # Guardamos en el historial del estado primero
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
-    # Mostramos el mensaje en pantalla inmediatamente
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
     
-    # Configuración de los prompts de sistema
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
         prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código con ejemplos claros."
@@ -242,3 +202,13 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         rol_api = "user" if msg["rol"] == "user" else "assistant"
         if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
             texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
+            historial_completo.append({"role": "user", "content": texto_unificado})
+        else:
+            historial_completo.append({"role": rol_api, "content": msg["texto"]})
+            
+    with st.chat_message("assistant"):
+        respuesta_final_chat = ejecutar_stream_groq(modelo_seleccionado, historial_completo, temperatura_seleccionada)
+        
+    if respuesta_final_chat:
+        st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_final_chat})
+        st.rerun()
