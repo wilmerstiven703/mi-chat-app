@@ -51,6 +51,40 @@ if "historial_mensajes" not in st.session_state:
 if "codigo_corregido" not in st.session_state:
     st.session_state.codigo_corregido = ""
 
+# --- FUNCIÓN GLOBAL DE STREAMING (EVITA ERRORES DE SINTAXIS) ---
+def ejecutar_stream_groq(modelo, mensajes, temperatura):
+    """Maneja de forma limpia la llamada a Groq y muestra el texto letra por letra"""
+    try:
+        client = Groq()
+        contenedor_texto = st.empty()
+        respuesta_texto = ""
+        
+        stream = client.chat.completions.create(
+            model=modelo,
+            messages=mensajes,
+            temperature=temperatura,
+            stream=True,
+        )
+        
+        tiempo_inicio = time.time()
+        for chunk in stream:
+            if chunk.choices and len(chunk.choices) > 0:
+                contenido = chunk.choices[0].delta.content  
+                if contenido:
+                    respuesta_texto += contenido
+                    contenedor_texto.markdown(respuesta_texto)
+        
+        tiempo_total = time.time() - tiempo_inicio
+        num_palabras = len(respuesta_texto.split())
+        if tiempo_total > 0 and respuesta_texto:
+            velocidad = num_palabras / tiempo_total
+            st.caption(f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
+            
+        return respuesta_texto
+    except Exception as e:
+        st.error(f"Error en la conexión con la IA: {e}")
+        return ""
+
 # --- BARRA LATERAL CONFIGURADA ---
 st.sidebar.header("🛠️ CONFIGURACIÓN")
 
@@ -125,34 +159,18 @@ if contenido_archivo:
             st.markdown(f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`")
         st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`"})
         
-        try:
-            client = Groq()
-            prompt_fixer = (
-                f"Eres un experto en ciberseguridad e Ingeniero Senior. Analiza el siguiente archivo, "
-                f"detecta bugs, vulnerabilidades o errores de lógica y corrígelos. Devuelve el código completo "
-                f"perfectamente reparado dentro de un único bloque de código markdown y da una explicación muy breve.\n\n"
-                f"Archivo: {archivo_subido.name}\n"
-                f"Contenido:\n```\n{contenido_archivo}\n```"
-            )
+        prompt_fixer = (
+            f"Eres un experto en ciberseguridad e Ingeniero Senior. Analiza el siguiente archivo, "
+            f"detecta bugs, vulnerabilidades o errores de lógica y corrígelos. Devuelve el código completo "
+            f"perfectamente reparado dentro de un único bloque de código markdown y da una explicación muy breve.\n\n"
+            f"Archivo: {archivo_subido.name}\n"
+            f"Contenido:\n```\n{contenido_archivo}\n```"
+        )
+        
+        with st.chat_message("assistant"):
+            respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
             
-            with st.chat_message("assistant"):
-                contenedor_texto = st.empty()
-                respuesta_texto = ""
-                
-                stream_fix = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": prompt_fixer}],
-                    temperature=0.1,
-                    stream=True,
-                )
-                
-                for chunk in stream_fix:
-                    if chunk.choices and len(chunk.choices) > 0:
-                        contenido = chunk.choices[0].delta.content  
-                        if contenido:
-                            respuesta_texto += contenido
-                            contenedor_texto.markdown(respuesta_texto)
-                
+        if respuesta_texto:
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
             
             if "```" in respuesta_texto:
@@ -163,9 +181,6 @@ if contenido_archivo:
                 st.session_state.codigo_corregido = codigo_limpio
             else:
                 st.session_state.codigo_corregido = respuesta_texto
-                
-        except Exception as e:
-            st.error(f"Error en el Fixer: {e}")
 
 # Botón para descargar exclusivamente el código reparado
 if st.session_state.codigo_corregido:
@@ -209,38 +224,23 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         st.markdown(pregunta_usuario)
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
-    try:
-        client = Groq()
-        prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
-        if rol_seleccionado == "Programador Experto 💻":
-            prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros."
-        elif rol_seleccionado == "Traductor Pro 🌐":
-            prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma de forma clara."
-        elif rol_seleccionado == "Profesor Divertido 🎓":
-            prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles usando analogías simples."
+    prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
+    if rol_seleccionado == "Programador Experto 💻":
+        prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros."
+    elif rol_seleccionado == "Traductor Pro 🌐":
+        prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma de forma clara."
+    elif rol_seleccionado == "Profesor Divertido 🎓":
+        prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles usando analogías simples."
 
-        historial_completo = [{"role": "system", "content": prompt_sistema}]
-        historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
-        
-        for msg in historial_recortado:
-            rol_api = "user" if msg["rol"] == "user" else "assistant"
-            if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
-                texto_con_archivo = (
-                    f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\n"
-                    f"Petición: {msg['texto']}"
-                )
-                historial_completo.append({"role": "user", "content": texto_con_archivo})
-            else:
-                historial_completo.append({"role": rol_api, "content": msg["texto"]})
-            
-        with st.chat_message("assistant"):
-            contenedor_texto = st.empty()
-            respuesta_texto = ""
-            
-            stream = client.chat.completions.create(
-                model=modelo_seleccionado,
-                messages=historial_completo,
-                temperature=temperatura_seleccionada,
-                stream=True,
+    historial_completo = [{"role": "system", "content": prompt_sistema}]
+    historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
+    
+    for msg in historial_recortado:
+        rol_api = "user" if msg["rol"] == "user" else "assistant"
+        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
+            texto_con_archivo = (
+                f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\n"
+                f"Petición: {msg['texto']}"
             )
-            
+            historial_completo.append({"role": "user", "content": texto_con_archivo})
+        else:
