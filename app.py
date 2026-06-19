@@ -1,6 +1,6 @@
 import os
 import time
-import streamlit st
+import streamlit as st
 from groq import Groq
 
 # 1. Configuración de la aplicación web
@@ -149,7 +149,7 @@ if contenido_archivo:
                 for chunk in stream_fix:
                     try:
                         if chunk.choices and len(chunk.choices) > 0:
-                            contenido = chunk.choices.delta.content  
+                            contenido = chunk.choices[0].delta.content  
                             if contenido:
                                 respuesta_texto += contenido
                                 contenedor_texto.markdown(respuesta_texto)
@@ -158,7 +158,7 @@ if contenido_archivo:
                 
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
             
-            # EXTRACCIÓN Y LIMPIEZA TOTALMENTE CORREGIDA
+            # EXTRACCIÓN Y LIMPIEZA CORREGIDA
             if "```" in respuesta_texto:
                 partes = respuesta_texto.split("```")
                 if len(partes) >= 3:
@@ -168,7 +168,7 @@ if contenido_archivo:
                 
                 for lang in ["python\n", "javascript\n", "html\n", "css\n", "json\n"]:
                     codigo_limpio = codigo_limpio.replace(lang, "")
-                st.session_state.indigo_corregido = codigo_limpio
+                st.session_state.codigo_corregido = codigo_limpio
             else:
                 st.session_state.codigo_corregido = respuesta_texto
                 
