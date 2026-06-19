@@ -219,15 +219,15 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (ESTABLE Y ALINEADA)
+# 5. Entrada del usuario estándar (ESTRUCTURA LINEAL MAESTRA SIN CAÍDAS)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
-    # Guardamos y pintamos inmediatamente en la interfaz
+    # Guardamos y pintamos de inmediato en pantalla
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
     # Configuramos el prompt de la personalidad elegida
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
-        prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros."
+        prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código con ejemplos claros."
     elif rol_seleccionado == "Traductor Pro 🌐":
         prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma de forma clara."
     elif rol_seleccionado == "Profesor Divertido 🎓":
@@ -236,9 +236,9 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     historial_completo = [{"role": "system", "content": prompt_sistema}]
     historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
     
-    # Construcción segura del historial para la API
+    # Construcción directa, limpia y libre de condicionales anidadas
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
+        historial_completo.append({"role": rol_api, "content": msg["texto"]})
         
-        # Inyección directa y segura del archivo si corresponde al último mensaje
-        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
+    # Inyección simplificada del archivo si existe (reemplaza directamente el contenido del último mensaje enviado)
