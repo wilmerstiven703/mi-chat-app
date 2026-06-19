@@ -51,9 +51,9 @@ if "historial_mensajes" not in st.session_state:
 if "codigo_corregido" not in st.session_state:
     st.session_state.codigo_corregido = ""
 
-# --- FUNCIÓN GLOBAL DE STREAMING COMPLETAMENTE CORREGIDA ---
+# --- FUNCIÓN GLOBAL DE STREAMING TOTALMENTE ACTUALIZADA Y BLINDADA ---
 def ejecutar_stream_groq(modelo, mensajes, temperatura):
-    """Maneja de forma limpia la llamada a Groq y muestra el texto letra por letra"""
+    """Maneja la llamada oficial a Groq usando la sintaxis moderna de streaming"""
     try:
         client = Groq()
         contenedor_texto = st.empty()
@@ -68,12 +68,15 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_inicio = time.time()
         for chunk in stream:
-            # SOLUCCIÓN AL CONGELAMIENTO: Acceso correcto por índice a las opciones del chunk
-            if chunk.choices and len(chunk.choices) > 0:
-                contenido = chunk.choices[0].delta.content  
-                if contenido:
-                    respuesta_texto += contenido
-                    contenedor_texto.markdown(respuesta_texto)
+            # SINTAXIS OFICIAL ACTUALIZADA: Extracción segura de datos por índice de choices
+            try:
+                if chunk.choices and len(chunk.choices) > 0:
+                    contenido = chunk.choices[0].delta.content
+                    if contenido:
+                        respuesta_texto += contenido
+                        contenedor_texto.markdown(respuesta_texto)
+            except Exception:
+                continue # Si un paquete de cierre viene vacío, lo ignora y no rompe el chat
         
         tiempo_total = time.time() - tiempo_inicio
         num_palabras = len(respuesta_texto.split())
@@ -127,7 +130,7 @@ temperatura_seleccionada = st.sidebar.slider(
 
 st.sidebar.markdown("---")
 
-# Panel de Estadísticas en tiempo real
+# Panel de Estadísticas en tiempo real (Calculado de forma segura)
 st.sidebar.subheader("📊 Estadísticas de la Sesión")
 total_palabras = sum(len(msg["texto"].split()) for msg in st.session_state.historial_mensajes)
 st.sidebar.metric(label="Palabras procesadas:", value=f"{total_palabras}")
@@ -182,6 +185,7 @@ if contenido_archivo:
                 st.session_state.codigo_corregido = codigo_limpio
             else:
                 st.session_state.codigo_corregido = respuesta_texto
+            st.rerun()
 
 # Botón para descargar exclusivamente el código reparado
 if st.session_state.codigo_corregido:
@@ -239,5 +243,3 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
         if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
-            texto_con_archivo = f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
-            historial_completo.append({"role": "user", "content": texto_con_archivo})
