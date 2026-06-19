@@ -70,7 +70,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         tiempo_inicio = time.time()
         for chunk in stream:
             if chunk.choices and len(chunk.choices) > 0:
-                contenido = chunk.choices.delta.content
+                contenido = chunk.choices[0].delta.content
                 if contenido:
                     respuesta_texto += contenido
                     contenedor_texto.markdown(respuesta_texto)
@@ -130,7 +130,7 @@ if archivo_subido is not None:
     except Exception:
         st.sidebar.error("Asegúrate de que sea texto plano o código.")
 
-# Herramientas de Automatización de Archivos (VERSION CORREGIDA SEGURA)
+# Herramientas de Automatización de Archivos
 if contenido_archivo:
     col_fix, col_doc = st.sidebar.columns(2)
     
@@ -142,10 +142,8 @@ if contenido_archivo:
                 f"perfectamente reparado dentro de un único bloque de código markdown sin texto adicional alrededor.\n\n"
                 f"Contenido:\n```\n{contenido_archivo}\n```"
             )
-            with st.chat_message("assistant"):
-                respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
+            respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
             if respuesta_texto:
-                # Extracción segura y plana que no rompe variables
                 st.session_state.codigo_corregido = respuesta_texto
                 st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Código analizado y corregido con éxito!"})
 
@@ -158,8 +156,7 @@ if contenido_archivo:
                 f"Funciones explicadas y Guía de uso rápido. Entrega exclusivamente el formato del manual:\n\n"
                 f"Código:\n```\n{contenido_archivo}\n```"
             )
-            with st.chat_message("assistant"):
-                respuesta_readme = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_readme}], 0.5)
+            respuesta_readme = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_readme}], 0.5)
             if respuesta_readme:
                 st.session_state.manual_readme = respuesta_readme
                 st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Documentación profesional generada!"})
@@ -191,12 +188,12 @@ if st.sidebar.button("Toque para borrar chat"):
     st.session_state.manual_readme = ""
     st.rerun()
 
-# 4. Mostrar mensajes anteriores de manera persistente
+# 4. Mostrar mensajes anteriores
 for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (FLUIDA Y NATIVA)
+# 5. Entrada del usuario estándar (FLUIDA, PLANA Y SIN SECCIONES ANIDADAS)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
@@ -216,10 +213,14 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
-        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
-            texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
-            historial_completo.append({"role": "user", "content": texto_unificado})
-        else:
-            historial_completo.append({"role": rol_api, "content": msg["texto"]})
+        historial_completo.append({"role": rol_api, "content": msg["texto"]})
+        
+    texto_final_usuario = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {pregunta_usuario}" if contenido_archivo else pregunta_usuario
+    historial_completo[-1]["content"] = texto_final_usuario
             
     with st.chat_message("assistant"):
+        respuesta_final_chat = ejecutar_stream_groq(modelo_seleccionado, historial_completo, temperatura=temperatura_seleccionada)
+        
+    if respuesta_final_chat:
+        st.session_state.historial_mensajes.append({"role": "assistant", "texto": respuesta_final_chat})
+        st.rerun()
