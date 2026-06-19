@@ -68,14 +68,13 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_inicio = time.time()
         for chunk in stream:
-            try:
-                if chunk.choices and len(chunk.choices) > 0:
-                    contenido = chunk.choices[0].delta.content
-                    if contenido:
-                        respuesta_texto += contenido
-                        contenedor_texto.markdown(respuesta_texto)
-            except Exception:
-                continue
+            # SOLUCIÓN AL CONGELAMIENTO: Extracción 100% segura del contenido del delta
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                contenido = getattr(delta, "content", None)
+                if contenido:
+                    respuesta_texto += contenido
+                    contenedor_texto.markdown(respuesta_texto)
         
         tiempo_total = time.time() - tiempo_inicio
         num_palabras = len(respuesta_texto.split())
