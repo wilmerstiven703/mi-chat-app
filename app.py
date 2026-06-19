@@ -155,8 +155,6 @@ if archivo_subido is not None:
 # Botón inteligente Auto-Bug Fixer
 if contenido_archivo:
     if st.sidebar.button("🛠️ Buscar y reparar Bugs"):
-        with st.chat_message("user"):
-            st.markdown(f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`")
         st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`"})
         
         prompt_fixer = (
@@ -219,12 +217,16 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (ESTRUCTURA LINEAL MAESTRA SIN CAÍDAS)
+# 5. Entrada del usuario estándar
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
-    # Guardamos y pintamos de inmediato en pantalla
+    # Guardamos inmediatamente en la memoria web antes de procesar
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
-    # Configuramos el prompt de la personalidad elegida
+    # Renderizamos de inmediato el mensaje del usuario en pantalla
+    with st.chat_message("user"):
+        st.markdown(pregunta_usuario)
+    
+    # Configuración de prompt de sistema según rol
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
         prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código con ejemplos claros."
@@ -236,9 +238,9 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     historial_completo = [{"role": "system", "content": prompt_sistema}]
     historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
     
-    # Construcción directa, limpia y libre de condicionales anidadas
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
-        historial_completo.append({"role": rol_api, "content": msg["texto"]})
-        
-    # Inyección simplificada del archivo si existe (reemplaza directamente el contenido del último mensaje enviado)
+        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
+            texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
+            historial_completo.append({"role": "user", "content": texto_unificado})
+        else:
