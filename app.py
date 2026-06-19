@@ -202,7 +202,7 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (NATIVA Y FLUIDA)
+# 5. Entrada del usuario estándar (ESTRUCTURA PLANA INMUNE A ERRORES)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
@@ -222,4 +222,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
-        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
+        historial_completo.append({"role": rol_api, "content": msg["texto"]})
+        
+    # INYECCIÓN PLANA DIRECTA: No más bloques 'if' con sangrías engañosas
+    if contenido_archivo:
