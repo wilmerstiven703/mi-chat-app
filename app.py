@@ -106,9 +106,9 @@ temperatura_seleccionada = st.sidebar.slider("Creatividad (Temperatura):", 0.0, 
 
 st.sidebar.markdown("---")
 
-# Panel de Estadísticas
+# Panel de Estadísticas (Protegido contra fallas de memoria)
 st.sidebar.subheader("📊 Estadísticas de la Sesión")
-total_palabras = sum(len(msg["texto"].split()) for msg in st.session_state.historial_mensajes)
+total_palabras = sum(len(msg.get("texto", "").split()) for msg in st.session_state.historial_mensajes if isinstance(msg, dict))
 st.sidebar.metric(label="Palabras procesadas:", value=f"{total_palabras}")
 st.sidebar.metric(label="Mensajes enviados:", value=f"{len(st.session_state.historial_mensajes)}")
 
@@ -142,7 +142,8 @@ if contenido_archivo:
                 f"perfectamente reparado dentro de un único bloque de código markdown sin texto adicional alrededor.\n\n"
                 f"Contenido:\n```\n{contenido_archivo}\n```"
             )
-            respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
+            with st.chat_message("assistant"):
+                respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
             if respuesta_texto:
                 st.session_state.codigo_corregido = respuesta_texto
                 st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Código analizado y corregido con éxito!"})
@@ -156,7 +157,8 @@ if contenido_archivo:
                 f"Funciones explicadas y Guía de uso rápido. Entrega exclusivamente el formato del manual:\n\n"
                 f"Código:\n```\n{contenido_archivo}\n```"
             )
-            respuesta_readme = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_readme}], 0.5)
+            with st.chat_message("assistant"):
+                respuesta_readme = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_readme}], 0.5)
             if respuesta_readme:
                 st.session_state.manual_readme = respuesta_readme
                 st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Documentación profesional generada!"})
@@ -174,12 +176,15 @@ if st.session_state.manual_readme:
         label="📝 Descargar Manual README.md", data=st.session_state.manual_readme, file_name="README.md", mime="text/plain"
     )
 
-# Utilidades de Historial
+# CORRECCIÓN MAESTRA DE LA LÍNEA 181: Uso de .get() para evitar caídas por variables viejas
 if st.session_state.historial_mensajes:
     chat_en_texto = "=== HISTORIAL BOT DE WILMER ===\n\n"
     for msg in st.session_state.historial_mensajes:
-        rol = "Usuario" if msg["rol"] == "user" else "Asistente"
-        chat_en_texto += f"[{rol}]: {msg['texto']}\n" + "-"*40 + "\n"
+        if isinstance(msg, dict):
+            # Cambiado msg["rol"] por msg.get("rol", msg.get("role", "user")) para blindar el bucle por completo
+            rol_etiqueta = msg.get("rol", msg.get("role", "user"))
+            rol = "Usuario" if rol_etiqueta == "user" else "Asistente"
+            chat_en_texto += f"[{rol}]: {msg.get('texto', msg.get('text', ''))}\n" + "-"*40 + "\n"
     st.sidebar.download_button(label="💾 Descargar chat (.txt)", data=chat_en_texto, file_name="historial_chat_wilmer.txt", mime="text/plain")
 
 if st.sidebar.button("Toque para borrar chat"):
@@ -188,12 +193,15 @@ if st.sidebar.button("Toque para borrar chat"):
     st.session_state.manual_readme = ""
     st.rerun()
 
-# 4. Mostrar mensajes anteriores
+# 4. Mostrar mensajes anteriores (También blindado con .get)
 for mensaje in st.session_state.historial_mensajes:
-    with st.chat_message(mensaje["rol"]):
-        st.markdown(mensaje["texto"])
+    if isinstance(mensaje, dict):
+        rol_visual = mensaje.get("rol", mensaje.get("role", "user"))
+        texto_visual = mensaje.get("texto", mensaje.get("text", ""))
+        with st.chat_message(rol_visual):
+            st.markdown(texto_visual)
 
-# 5. Entrada del usuario estándar (FLUIDA, PLANA Y SIN SECCIONES ANIDADAS)
+# 5. Entrada del usuario estándar
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
@@ -212,15 +220,6 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
     
     for msg in historial_recortado:
-        rol_api = "user" if msg["rol"] == "user" else "assistant"
-        historial_completo.append({"role": rol_api, "content": msg["texto"]})
-        
-    texto_final_usuario = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {pregunta_usuario}" if contenido_archivo else pregunta_usuario
-    historial_completo[-1]["content"] = texto_final_usuario
-            
-    with st.chat_message("assistant"):
-        respuesta_final_chat = ejecutar_stream_groq(modelo_seleccionado, historial_completo, temperatura=temperatura_seleccionada)
-        
-    if respuesta_final_chat:
-        st.session_state.historial_mensajes.append({"role": "assistant", "texto": respuesta_final_chat})
-        st.rerun()
+        if isinstance(msg, dict):
+            rol_api_raw = msg.get("rol", msg.get("role", "user"))
+            rol_api = "user" if rol_api_raw == "user" else "assistant"
