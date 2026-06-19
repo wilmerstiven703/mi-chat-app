@@ -70,7 +70,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         tiempo_inicio = time.time()
         for chunk in stream:
             if chunk.choices and len(chunk.choices) > 0:
-                contenido = chunk.choices[0].delta.content
+                contenido = chunk.choices.delta.content
                 if contenido:
                     respuesta_texto += contenido
                     contenedor_texto.markdown(respuesta_texto)
@@ -130,7 +130,7 @@ if archivo_subido is not None:
     except Exception:
         st.sidebar.error("Asegúrate de que sea texto plano o código.")
 
-# Herramientas de Automatización de Archivos
+# Herramientas de Automatización de Archivos (VERSION CORREGIDA SEGURA)
 if contenido_archivo:
     col_fix, col_doc = st.sidebar.columns(2)
     
@@ -145,14 +145,8 @@ if contenido_archivo:
             with st.chat_message("assistant"):
                 respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
             if respuesta_texto:
-                if "```" in respuesta_texto:
-                    partes = respuesta_texto.split("```")
-                    codigo_limpio = partes[1] if len(partes) >= 3 else partes[0]
-                    for lang in ["python\n", "javascript\n", "html\n", "css\n", "json\n"]:
-                        codigo_limpio = codigo_limpio.replace(lang, "")
-                    st.session_state.codigo_corregido = codigo_limpio
-                else:
-                    st.session_state.codigo_corregido = respuesta_texto
+                # Extracción segura y plana que no rompe variables
+                st.session_state.codigo_corregido = respuesta_texto
                 st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Código analizado y corregido con éxito!"})
 
     with col_doc:
@@ -197,12 +191,12 @@ if st.sidebar.button("Toque para borrar chat"):
     st.session_state.manual_readme = ""
     st.rerun()
 
-# 4. Mostrar mensajes anteriores
+# 4. Mostrar mensajes anteriores de manera persistente
 for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (NATIVA Y FLUIDA)
+# 5. Entrada del usuario estándar (FLUIDA Y NATIVA)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
@@ -224,3 +218,8 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         rol_api = "user" if msg["rol"] == "user" else "assistant"
         if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
             texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
+            historial_completo.append({"role": "user", "content": texto_unificado})
+        else:
+            historial_completo.append({"role": rol_api, "content": msg["texto"]})
+            
+    with st.chat_message("assistant"):
