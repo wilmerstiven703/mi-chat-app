@@ -172,7 +172,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             rol_api = "user" if msg["rol"] == "user" else "assistant"
             if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
                 texto_con_archivo = (
-                    f"El usuario ha adjuntado un archivo llamado '{archivo_subido.name}' con el siguiente contenido:\n"
+                    f"El usuario ha adjuntado un archivo llamado '{archivo_subido.name}' con el Packaging del siguiente contenido:\n"
                     f"```\n{contenido_archivo}\n```\n"
                     f"Teniendo en cuenta ese archivo, responde a la siguiente petición: {msg['texto']}"
                 )
@@ -192,29 +192,29 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                 stream=True,
             )
             
-            # NUEVO: Cronómetro de inicio
+            # Cronómetro de inicio
             tiempo_inicio = time.time()
             
             for chunk in stream:
-                if chunk.choices and len(chunk.choices) > 0:
-                    contenido = chunk.choices.delta.content
-                    if contenido:
-                        respuesta_texto += contenido
-                        contenedor_texto.markdown(respuesta_texto)
+                try:
+                    if chunk.choices and len(chunk.choices) > 0:
+                        contenido = chunk.choices[0].delta.content  # Aseguramos acceso explícito al índice cero
+                        if contenido:
+                            respuesta_texto += contenido
+                            contenedor_texto.markdown(respuesta_texto)
+                except Exception:
+                    continue
             
-            # NUEVO: Cronómetro de fin y cálculo de velocidad
+            # Cronómetro de fin y cálculo de velocidad
             tiempo_total = time.time() - tiempo_inicio
             num_palabras = len(respuesta_texto.split())
             
-            # Evitamos división entre cero si la respuesta es ultra corta
-            if tiempo_total > 0:
+            if tiempo_total > 0 and respuesta_texto:
                 velocidad = num_palabras / tiempo_total
-                # Mostramos una pequeña etiqueta verde estilo terminal abajo de la respuesta
                 st.caption(f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
             
-        # Guardamos la respuesta del asistente en el historial general
+        # Guardamos la respuesta del asistente en el historial general (Sin st.rerun destructivo)
         st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
-        st.rerun()
         
     except Exception as e:
         st.error(f"Ocurrió un problema técnico. Detalle: {e}")
