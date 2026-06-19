@@ -51,7 +51,7 @@ if "historial_mensajes" not in st.session_state:
 if "codigo_corregido" not in st.session_state:
     st.session_state.codigo_corregido = ""
 
-# --- FUNCIÓN GLOBAL DE STREAMING REPARADA ---
+# --- FUNCIÓN GLOBAL DE STREAMING COMPLETAMENTE CORREGIDA ---
 def ejecutar_stream_groq(modelo, mensajes, temperatura):
     """Maneja de forma limpia la llamada a Groq y muestra el texto letra por letra"""
     try:
@@ -68,7 +68,8 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_inicio = time.time()
         for chunk in stream:
-            if hasattr(chunk, 'choices') and chunk.choices:
+            # SOLUCCIÓN AL CONGELAMIENTO: Acceso correcto por índice a las opciones del chunk
+            if chunk.choices and len(chunk.choices) > 0:
                 contenido = chunk.choices[0].delta.content  
                 if contenido:
                     respuesta_texto += contenido
@@ -226,7 +227,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
-        prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con examples claros."
+        prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros."
     elif rol_seleccionado == "Traductor Pro 🌐":
         prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma de forma clara."
     elif rol_seleccionado == "Profesor Divertido 🎓":
@@ -240,6 +241,3 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
             texto_con_archivo = f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
             historial_completo.append({"role": "user", "content": texto_con_archivo})
-        else:
-            historial_completo.append({"role": rol_api, "content": msg["texto"]})
-            
