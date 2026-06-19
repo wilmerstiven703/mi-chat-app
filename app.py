@@ -78,7 +78,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         num_palabras = len(respuesta_texto.split())
         if tiempo_total > 0 and respuesta_texto:
             velocidad = num_palabras / tiempo_total
-            st.caption(f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
+            st.caption(f"⏱ shrink_text Generated `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
             
         return respuesta_texto
     except Exception as e:
@@ -155,7 +155,7 @@ if archivo_subido is not None:
 # Botón inteligente Auto-Bug Fixer
 if contenido_archivo:
     if st.sidebar.button("🛠️ Buscar y reparar Bugs"):
-        st.session_state.historial_mensajes.append({"role": "user", "text": f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`"})
+        st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`"})
         
         prompt_fixer = (
             f"Eres un experto en ciberseguridad e Ingeniero Senior. Analiza el siguiente archivo, "
@@ -169,7 +169,7 @@ if contenido_archivo:
             respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
             
         if respuesta_texto:
-            st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
+            st.session_state.historial_mensajes.append({"role": "assistant", "texto": respuesta_texto})
             
             if "```" in respuesta_texto:
                 partes = respuesta_texto.split("```")
