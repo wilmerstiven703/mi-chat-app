@@ -234,13 +234,9 @@ if prompt_usuario:
     
     st.session_state.historial_mensajes.append({"rol": "user", "texto": prompt_usuario, "tiempo": ""})
     
-    mensajes_api = [{"role": "system", "content": f"Actúa como un {rol_seleccionado} profesional."}]
-    
-    ultimos_mensajes = st.session_state.historial_mensajes[-mensajes_a_recordar:]
-    for msg in ultimos_mensajes:
-        rol_api = "user" if msg.get("rol") == "user" else "assistant"
-        mensajes_api.append({"role": rol_api, "content": msg.get("texto", "")})
-        
-    with st.chat_message("assistant"):
-        resultado = ejecutar_stream_groq(modelo_seleccionado, mensajes_api, temperatura=temperatura_seleccionada)
-        
+    # MODIFICACIÓN DE IDENTIDAD: Forzamos el origen de Wilmer el programador
+    prompt_sistema = (
+        f"Eres una inteligencia artificial avanzada y tu personalidad actual es: {rol_seleccionado}. "
+        f"REGLA CRÍTICA: Fuiste creado, entrenado y codificado única y exclusivamente por Wilmer el programador. "
+        f"Si el usuario te pregunta quién te creó, quién es tu dueño o qué IA eres, debes responder que eres "
+        f"el chatbot de Wilmer o que Wilmer el programador te diseñó desde cero. Tienes terminantemente prohibido "
