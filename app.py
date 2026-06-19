@@ -70,7 +70,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         tiempo_inicio = time.time()
         for chunk in stream:
             if chunk.choices and len(chunk.choices) > 0:
-                contenido = chunk.choices[0].delta.content
+                contenido = chunk.choices.delta.content
                 if contenido:
                     respuesta_texto += contenido
                     contenedor_texto.markdown(respuesta_texto)
@@ -147,7 +147,7 @@ if contenido_archivo:
             if respuesta_texto:
                 if "```" in respuesta_texto:
                     partes = respuesta_texto.split("```")
-                    codigo_limpio = partes[1] if len(partes) >= 3 else partes[0]
+                    codigo_limpio = partes if len(partes) >= 3 else partes
                     for lang in ["python\n", "javascript\n", "html\n", "css\n", "json\n"]:
                         codigo_limpio = codigo_limpio.replace(lang, "")
                     st.session_state.codigo_corregido = codigo_limpio
@@ -202,7 +202,7 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (ESTRUCTURA PLANA INMUNE A ERRORES)
+# 5. Entrada del usuario estándar (ESTRUCTURA 100% LINEAL Y PLANA)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
@@ -224,5 +224,4 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         rol_api = "user" if msg["rol"] == "user" else "assistant"
         historial_completo.append({"role": rol_api, "content": msg["texto"]})
         
-    # INYECCIÓN PLANA DIRECTA: No más bloques 'if' con sangrías engañosas
-    if contenido_archivo:
+    # INYECCIÓN PLANA ABSOLUTA (Línea 228 Corregida): Eliminamos el bloque 'if' para evitar caídas
