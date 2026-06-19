@@ -45,9 +45,11 @@ elif not os.environ.get("GROQ_API_KEY"):
     st.error("Por favor, configura la variable de entorno o secreto GROQ_API_KEY.")
     st.stop()
 
-# 3. Inicializar el historial de mensajes en la memoria web
+# 3. Inicializar el historial y el contenedor de código corregido
 if "historial_mensajes" not in st.session_state:
     st.session_state.historial_mensajes = []
+if "codigo_corregido" not in st.session_state:
+    st.session_state.codigo_corregido = ""
 
 # --- BARRA LATERAL CONFIGURADA ---
 st.sidebar.header("🛠️ CONFIGURACIÓN")
@@ -78,7 +80,7 @@ mensajes_a_recordar = st.sidebar.slider(
     help="Cuántos mensajes del historial verá la IA. Un número menor ahorra tokens y acelera el chat."
 )
 
-# NUEVO: Control deslizante para ajustar la temperatura (Creatividad) de la IA
+# Control deslizante para ajustar la temperatura (Creatividad) de la IA
 temperatura_seleccionada = st.sidebar.slider(
     "Creatividad de la IA (Temperatura):",
     min_value=0.0,
@@ -92,13 +94,7 @@ st.sidebar.markdown("---")
 
 # Panel de Estadísticas en tiempo real
 st.sidebar.subheader("📊 Estadísticas de la Sesión")
-
-# Calculamos el total de palabras acumuladas en el chat
-total_palabras = 0
-for msg in st.session_state.historial_mensajes:
-    total_palabras += len(msg["texto"].split())
-
-# Mostramos la métrica de forma visual e intuitiva
+total_palabras = sum(len(msg["texto"].split()) for msg in st.session_state.historial_mensajes)
 st.sidebar.metric(label="Palabras procesadas:", value=f"{total_palabras}")
 st.sidebar.metric(label="Mensajes enviados:", value=f"{len(st.session_state.historial_mensajes)}")
 
@@ -113,29 +109,86 @@ archivo_subido = st.sidebar.file_uploader(
 )
 
 contenido_archivo = ""
+nombre_archivo = "archivo_corregido.py"
 if archivo_subido is not None:
     try:
         contenido_archivo = archivo_subido.read().decode("utf-8")
-        st.sidebar.success(f"¡'{archivo_subido.name}' cargado con éxito!")
-    except Exception as e:
-        st.sidebar.error("No se pudo leer el archivo. Asegúrate de que sea texto plano.")
+        nombre_archivo = f"reparado_{archivo_subido.name}"
+        st.sidebar.success(f"¡'{archivo_subido.name}' cargado!")
+    except Exception:
+        st.sidebar.error("Asegúrate de que sea texto plano o código.")
+
+# NUEVO: Botón inteligente Auto-Bug Fixer
+if contenido_archivo:
+    if st.sidebar.button("🛠️ Buscar y reparar Bugs"):
+        with st.chat_message("user"):
+            st.markdown(f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`")
+        st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`"})
+        
+        try:
+            client = Groq()
+            prompt_fixer = (
+                f"Eres un experto en ciberseguridad e Ingeniero Senior. Analiza el siguiente archivo, "
+                f"detecta bugs, vulnerabilidades o errores de lógica y corrígelos. Devuelve el código completo "
+                f"perfectamente reparado dentro de un único bloque de código markdown y da una explicación muy breve.\n\n"
+                f"Archivo: {archivo_subido.name}\n"
+                f"Contenido:\n```\n{contenido_archivo}\n```"
+            )
+            
+            with st.chat_message("assistant"):
+                contenedor_texto = st.empty()
+                respuesta_texto = ""
+                
+                stream = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",  # Forzamos el modelo potente para reparar código
+                    messages=[{"role": "user", "content": prompt_fixer}],
+                    temperature=0.1,  # Temperatura ultra baja para máxima precisión matemática
+                    stream=True,
+                )
+                
+                for chunk in stream:
+                    try:
+                        if chunk.choices and len(chunk.choices) > 0:
+                            contenido = chunk.choices.delta.content  
+                            if contenido:
+                                respuesta_texto += contenido
+                                contenedor_texto.markdown(respuesta_texto)
+                    except Exception:
+                        continue
+                
+            st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
+            # Extraemos el bloque de código limpio para guardarlo en la descarga
+            if "```" in respuesta_texto:
+                partes = respuesta_texto.split("```")
+                # Intentamos capturar el código dentro de las etiquetas markdown
+                st.session_state.codigo_corregido = partes[1].replace("python\n", "").replace("javascript\n", "")
+            else:
+                st.session_state.codigo_corregido = respuesta_texto
+                
+        except Exception as e:
+            st.error(f"Error en el Fixer: {e}")
+
+# NUEVO: Botón para descargar exclusivamente el código reparado
+if st.session_state.codigo_corregido:
+    st.sidebar.download_button(
+        label="🚀 Descargar archivo REPARADO",
+        data=st.session_state.codigo_corregido,
+        file_name=nombre_archivo,
+        mime="text/plain",
+        help="Descarga el script corregido directamente a tu máquina."
+    )
 
 st.sidebar.markdown("---")
 
-# Función para formatear el historial y hacerlo un texto descargable
-def formatear_historial_txt():
-    texto_final = "=== HISTORIAL DE CHAT - BOT DE WILMER ===\n\n"
+# Botón para descargar historial de chat plano
+if st.session_state.historial_mensajes:
+    chat_en_texto = "=== HISTORIAL BOT DE WILMER ===\n\n"
     for msg in st.session_state.historial_mensajes:
         rol = "Usuario" if msg["rol"] == "user" else "Asistente"
-        texto_final += f"[{rol}]: {msg['texto']}\n"
-        texto_final += "-" * 40 + "\n"
-    return texto_final
-
-# Botón de descarga inteligente
-if st.session_state.historial_mensajes:
-    chat_en_texto = formatear_historial_txt()
+        chat_en_texto += f"[{rol}]: {msg['texto']}\n" + "-"*40 + "\n"
+        
     st.sidebar.download_button(
-        label="💾 Descargar conversación (.txt)",
+        label="💾 Descargar chat (.txt)",
         data=chat_en_texto,
         file_name="historial_chat_wilmer.txt",
         mime="text/plain"
@@ -143,6 +196,7 @@ if st.session_state.historial_mensajes:
 
 if st.sidebar.button("Toque para borrar chat"):
     st.session_state.historial_mensajes = []
+    st.session_state.codigo_corregido = ""
     st.rerun()
 
 # 4. Mostrar todos los mensajes anteriores en la pantalla
@@ -150,81 +204,38 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario y respuesta de la IA
+# 5. Entrada del usuario estándar
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
-    
-    # Mostrar inmediatamente en pantalla el mensaje visual del usuario
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
-    
-    # Lo agregamos al historial general
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
     try:
-        # Inicializamos el cliente de Groq
         client = Groq()
-        
-        # Definir el System Prompt según el rol seleccionado
         prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
         if rol_seleccionado == "Programador Experto 💻":
-            prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros en bloques de código."
+            prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros."
         elif rol_seleccionado == "Traductor Pro 🌐":
-            prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma, corregir gramática y explicar modismos locales de forma clara."
+            prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma de forma clara."
         elif rol_seleccionado == "Profesor Divertido 🎓":
-            prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles usando analogías simples, chistes y un tono muy motivador."
+            prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles usando analogías simples."
 
         historial_completo = [{"role": "system", "content": prompt_sistema}]
-        
-        # Construimos la memoria recortada basada en los últimos mensajes
         historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
         
         for msg in historial_recortado:
             rol_api = "user" if msg["rol"] == "user" else "assistant"
             if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
                 texto_con_archivo = (
-                    f"El usuario ha adjuntado un archivo llamado '{archivo_subido.name}' con el siguiente contenido:\n"
-                    f"```\n{contenido_archivo}\n```\n"
-                    f"Teniendo en cuenta ese archivo, responde a la siguiente petición: {msg['texto']}"
+                    f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\n"
+                    f"Petición: {msg['texto']}"
                 )
                 historial_completo.append({"role": "user", "content": texto_con_archivo})
             else:
                 historial_completo.append({"role": rol_api, "content": msg["texto"]})
             
-        # Llamada a la API de Groq midiendo el rendimiento
         with st.chat_message("assistant"):
             contenedor_texto = st.empty()
             respuesta_texto = ""
             
             stream = client.chat.completions.create(
-                model=modelo_seleccionado,
-                messages=historial_completo,
-                temperature=temperatura_seleccionada,  # <--- NUEVO: Conectado al slider de la barra lateral
-                stream=True,
-            )
-            
-            # Cronómetro de inicio
-            tiempo_inicio = time.time()
-            
-            for chunk in stream:
-                try:
-                    if chunk.choices and len(chunk.choices) > 0:
-                        contenido = chunk.choices[0].delta.content  
-                        if contenido:
-                            respuesta_texto += contenido
-                            contenedor_texto.markdown(respuesta_texto)
-                except Exception:
-                    continue
-            
-            # Cronómetro de fin y cálculo de velocidad
-            tiempo_total = time.time() - tiempo_inicio
-            num_palabras = len(respuesta_texto.split())
-            
-            if tiempo_total > 0 and respuesta_texto:
-                velocidad = num_palabras / tiempo_total
-                st.caption(f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
-            
-        # Guardamos la respuesta del asistente en el historial general
-        st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
-        
-    except Exception as e:
-        st.error(f"Ocurrió un problema técnico. Detalle: {e}")
