@@ -161,7 +161,7 @@ if contenido_archivo:
         
         prompt_fixer = (
             f"Eres un experto en ciberseguridad e Ingeniero Senior. Analiza el siguiente archivo, "
-            f"detecta bugs, vulnerabilidades o errores de lógica y corrígelos. Devuelve el código completo "
+            f"detecta bugs, vulnerabilidades o errores de lógica y corrígelos. Devuelve únicamente el código completo "
             f"perfectamente reparado dentro de un único bloque de código markdown y da una explicación muy breve.\n\n"
             f"Archivo: {archivo_subido.name}\n"
             f"Contenido:\n```\n{contenido_archivo}\n```"
@@ -173,8 +173,10 @@ if contenido_archivo:
         if respuesta_texto:
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
             
+            # Extracción del bloque de código markdown simplificada y robusta
             if "```" in respuesta_texto:
                 partes = respuesta_texto.split("```")
+                # Si hay bloques markdown válidos, tomamos la sección del código
                 codigo_limpio = partes[1] if len(partes) >= 3 else partes[0]
                 for lang in ["python\n", "javascript\n", "html\n", "css\n", "json\n"]:
                     codigo_limpio = codigo_limpio.replace(lang, "")
@@ -240,7 +242,3 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
             texto_con_archivo = (
                 f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\n"
-                f"Petición: {msg['texto']}"
-            )
-            historial_completo.append({"role": "user", "content": texto_con_archivo})
-        else:
