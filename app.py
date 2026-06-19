@@ -155,7 +155,7 @@ if archivo_subido is not None:
 # Botón inteligente Auto-Bug Fixer
 if contenido_archivo:
     if st.sidebar.button("🛠️ Buscar y reparar Bugs"):
-        st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`"})
+        st.session_state.historial_mensajes.append({"role": "user", "text": f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`"})
         
         prompt_fixer = (
             f"Eres un experto en ciberseguridad e Ingeniero Senior. Analiza el siguiente archivo, "
@@ -169,7 +169,7 @@ if contenido_archivo:
             respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
             
         if respuesta_texto:
-            st.session_state.historial_mensajes.append({"role": "assistant", "texto": respuesta_texto})
+            st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
             
             if "```" in respuesta_texto:
                 partes = respuesta_texto.split("```")
@@ -219,14 +219,11 @@ for mensaje in st.session_state.historial_mensajes:
 
 # 5. Entrada del usuario estándar
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
-    # Guardamos inmediatamente en la memoria web antes de procesar
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
-    # Renderizamos de inmediato el mensaje del usuario en pantalla
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
     
-    # Configuración de prompt de sistema según rol
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
         prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código con ejemplos claros."
@@ -244,3 +241,6 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
             historial_completo.append({"role": "user", "content": texto_unificado})
         else:
+            historial_completo.append({"role": rol_api, "content": msg["texto"]})
+            
+    with st.chat_message("assistant"):
