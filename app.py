@@ -45,11 +45,13 @@ elif not os.environ.get("GROQ_API_KEY"):
     st.error("Por favor, configura tu GROQ_API_KEY en los Secrets de Streamlit.")
     st.stop()
 
-# 3. Inicializar el historial y el contenedor de código corregido
+# 3. Inicializar variables en st.session_state
 if "historial_mensajes" not in st.session_state:
     st.session_state.historial_mensajes = []
 if "codigo_corregido" not in st.session_state:
     st.session_state.codigo_corregido = ""
+if "manual_readme" not in st.session_state:
+    st.session_state.manual_readme = ""
 
 # --- FUNCIÓN GLOBAL DE STREAMING REPARADA ---
 def ejecutar_stream_groq(modelo, mensajes, temperatura):
@@ -128,42 +130,66 @@ if archivo_subido is not None:
     except Exception:
         st.sidebar.error("Asegúrate de que sea texto plano o código.")
 
-# Botón Auto-Bug Fixer
+# Herramientas de Automatización de Archivos
 if contenido_archivo:
-    if st.sidebar.button("🛠️ Buscar y reparar Bugs"):
-        st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Analiza y repara los errores de mi archivo: `{archivo_subido.name}`"})
-        
-        prompt_fixer = (
-            f"Eres un experto en ciberseguridad e Ingeniero Senior. Analiza el siguiente archivo, "
-            f"detecta bugs y corrígelos. Devuelve únicamente el código completo "
-            f"perfectamente reparado dentro de un único bloque de código markdown.\n\n"
-            f"Contenido:\n```\n{contenido_archivo}\n```"
-        )
-        
-        with st.chat_message("assistant"):
-            respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
-            
-        if respuesta_texto:
-            if "```" in respuesta_texto:
-                partes = respuesta_texto.split("```")
-                codigo_limpio = partes[1] if len(partes) >= 3 else partes[0]
-                for lang in ["python\n", "javascript\n", "html\n", "css\n", "json\n"]:
-                    codigo_limpio = codigo_limpio.replace(lang, "")
-                st.session_state.codigo_corregido = codigo_limpio
-            else:
-                st.session_state.codigo_corregido = respuesta_texto
-            
-            st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
-            st.rerun()
+    col_fix, col_doc = st.sidebar.columns(2)
+    
+    # Opción A: Reparador de Bugs
+    with col_fix:
+        if st.button("🛠️ Reparar Bugs"):
+            st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Repara los errores de mi archivo: `{archivo_subido.name}`"})
+            prompt_fixer = (
+                f"Eres un experto en ingeniería de software. Detecta bugs y corrígelos. Devuelve únicamente el código completo "
+                f"perfectamente reparado dentro de un único bloque de código markdown sin texto adicional alrededor.\n\n"
+                f"Contenido:\n```\n{contenido_archivo}\n```"
+            )
+            with st.chat_message("assistant"):
+                respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
+            if respuesta_texto:
+                if "```" in respuesta_texto:
+                    partes = respuesta_texto.split("```")
+                    codigo_limpio = partes[1] if len(partes) >= 3 else partes[0]
+                    for lang in ["python\n", "javascript\n", "html\n", "css\n", "json\n"]:
+                        codigo_limpio = codigo_limpio.replace(lang, "")
+                    st.session_state.codigo_corregido = codigo_limpio
+                else:
+                    st.session_state.codigo_corregido = respuesta_texto
+                st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Código analizado y corregido con éxito! Puedes descargarlo en la barra lateral."})
+                st.rerun()
 
-if st.session_state.codigo_corregido:
-    st.sidebar.download_button(
-        label="🚀 Descargar archivo REPARADO", data=st.session_state.codigo_corregido, file_name=nombre_archivo, mime="text/plain"
-    )
+    # Opción B: NUEVO Generador de Documentación (README)
+    with col_doc:
+        if st.button("📝 Crear README"):
+            st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Genera la documentación para mi archivo: `{archivo_subido.name}`"})
+            prompt_readme = (
+                f"Eres un documentador técnico profesional. Analiza el siguiente código y genera un manual de usuario "
+                f"profesional en formato Markdown (README.md). Debe incluir: Nombre del proyecto, Descripción clara de qué hace, "
+                f"Requisitos, Funciones explicadas y Guía de uso rápido. Entrega exclusivamente el formato del manual:\n\n"
+                f"Código:\n```\n{contenido_archivo}\n```"
+            )
+            with st.chat_message("assistant"):
+                respuesta_readme = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_readme}], 0.5)
+            if respuesta_readme:
+                st.session_state.manual_readme = respuesta_readme
+                st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Documentación profesional generada! Ya puedes descargar tu archivo README.md en el panel lateral."})
+                st.rerun()
 
 st.sidebar.markdown("---")
 
+# Módulo de Descargas Dinámicas de Herramientas
+if st.session_state.codigo_corregido:
+    st.sidebar.download_button(
+        label="📥 Descargar Script REPARADO", data=st.session_state.codigo_corregido, file_name=nombre_archivo, mime="text/plain"
+    )
+
+if st.session_state.manual_readme:
+    st.sidebar.download_button(
+        label="📝 Descargar Manual README.md", data=st.session_state.manual_readme, file_name="README.md", mime="text/plain"
+    )
+
+# Botones de Utilidades de Historial
 if st.session_state.historial_mensajes:
+    st.sidebar.markdown("---")
     chat_en_texto = "=== HISTORIAL BOT DE WILMER ===\n\n"
     for msg in st.session_state.historial_mensajes:
         rol = "Usuario" if msg["rol"] == "user" else "Asistente"
@@ -173,6 +199,7 @@ if st.session_state.historial_mensajes:
 if st.sidebar.button("Toque para borrar chat"):
     st.session_state.historial_mensajes = []
     st.session_state.codigo_corregido = ""
+    st.session_state.manual_readme = ""
     st.rerun()
 
 # 4. Mostrar mensajes anteriores
@@ -180,7 +207,7 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (ESTRUCTURA ORIGINAL LIMPIA)
+# 5. Entrada del usuario estándar
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
@@ -198,17 +225,3 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     historial_completo = [{"role": "system", "content": prompt_sistema}]
     historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
     
-    for msg in historial_recortado:
-        rol_api = "user" if msg["rol"] == "user" else "assistant"
-        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
-            texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
-            historial_completo.append({"role": "user", "content": texto_unificado})
-        else:
-            historial_completo.append({"role": rol_api, "content": msg["texto"]})
-            
-    with st.chat_message("assistant"):
-        respuesta_final_chat = ejecutar_stream_groq(modelo_seleccionado, historial_completo, temperatura_seleccionada)
-        
-    if respuesta_final_chat:
-        st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_final_chat})
-        st.rerun()
