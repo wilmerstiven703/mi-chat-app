@@ -68,7 +68,6 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_inicio = time.time()
         for chunk in stream:
-            # SINTAXIS OFICIAL ACTUALIZADA: Extracción segura de datos por índice de choices
             try:
                 if chunk.choices and len(chunk.choices) > 0:
                     contenido = chunk.choices[0].delta.content
@@ -76,7 +75,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
                         respuesta_texto += contenido
                         contenedor_texto.markdown(respuesta_texto)
             except Exception:
-                continue # Si un paquete de cierre viene vacío, lo ignora y no rompe el chat
+                continue
         
         tiempo_total = time.time() - tiempo_inicio
         num_palabras = len(respuesta_texto.split())
@@ -130,7 +129,7 @@ temperatura_seleccionada = st.sidebar.slider(
 
 st.sidebar.markdown("---")
 
-# Panel de Estadísticas en tiempo real (Calculado de forma segura)
+# Panel de Estadísticas en tiempo real
 st.sidebar.subheader("📊 Estadísticas de la Sesión")
 total_palabras = sum(len(msg["texto"].split()) for msg in st.session_state.historial_mensajes)
 st.sidebar.metric(label="Palabras procesadas:", value=f"{total_palabras}")
@@ -243,3 +242,4 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
         if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
+            texto_con_archivo = f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
