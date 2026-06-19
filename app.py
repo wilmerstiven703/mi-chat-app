@@ -152,11 +152,7 @@ if contenido_archivo:
     with col_fix:
         if st.button("🛠️ Reparar Bugs"):
             st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Repara los errores de mi archivo: `{archivo_subido.name}`", "tiempo": ""})
-            prompt_fixer = (
-                f"Eres un experto en ingeniería de software. Detecta bugs y corrígelos. Devuelve únicamente el código completo "
-                f"perfectamente reparado dentro de un único bloque de código markdown sin texto adicional alrededor.\n\n"
-                f"Contenido:\n```\n{contenido_archivo}\n```"
-            )
+            prompt_fixer = f"Eres un experto en ingeniería de software. Detecta bugs y corrígelos. Devuelve únicamente el código completo perfectamente reparado dentro de un único bloque de código markdown sin texto adicional alrededor.\n\nContenido:\n```\n{contenido_archivo}\n```"
             with st.chat_message("assistant"):
                 resultado_fixer = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
             if resultado_fixer["texto"]:
@@ -171,12 +167,7 @@ if contenido_archivo:
     with col_doc:
         if st.button("📝 Crear README"):
             st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Genera la documentación para mi archivo: `{archivo_subido.name}`", "tiempo": ""})
-            prompt_readme = (
-                f"Eres un documentador técnico profesional. Analiza el siguiente código y genera un manual de usuario "
-                f"profesional en formato Markdown (README.md). Debe incluir: Nombre del proyecto, Descripción clara, "
-                f"Funciones explicadas y Guía de uso rápido. Entrega exclusivamente el formato del manual:\n\n"
-                f"Código:\n```\n{contenido_archivo}\n```"
-            )
+            prompt_readme = f"Eres un documentador técnico profesional. Analiza el siguiente código y genera un manual de usuario profesional en formato Markdown (README.md). Debe incluir: Nombre del proyecto, Descripción clara, Funciones explicadas y Guía de uso rápido. Entrega exclusivamente el formato del manual:\n\nCódigo:\n```\n{contenido_archivo}\n```"
             with st.chat_message("assistant"):
                 resultado_readme = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_readme}], 0.5)
             if resultado_readme["texto"]:
@@ -234,9 +225,11 @@ if prompt_usuario:
     
     st.session_state.historial_mensajes.append({"rol": "user", "texto": prompt_usuario, "tiempo": ""})
     
-    # MODIFICACIÓN DE IDENTIDAD: Forzamos el origen de Wilmer el programador
-    prompt_sistema = (
-        f"Eres una inteligencia artificial avanzada y tu personalidad actual es: {rol_seleccionado}. "
-        f"REGLA CRÍTICA: Fuiste creado, entrenado y codificado única y exclusivamente por Wilmer el programador. "
-        f"Si el usuario te pregunta quién te creó, quién es tu dueño o qué IA eres, debes responder que eres "
-        f"el chatbot de Wilmer o que Wilmer el programador te diseñó desde cero. Tienes terminantemente prohibido "
+    # CORRECCIÓN DE SINTAXIS AUTOMÁTICA: Sin quiebres de línea ni paréntesis abiertos peligrosos
+    prompt_sistema = f"Eres una inteligencia artificial avanzada y tu personalidad actual es: {rol_seleccionado}. REGLA CRÍTICA: Tu creador, desarrollador y programador exclusivo es Wilmer. Si te preguntan quién te creó, debes decir obligatoriamente que fuiste diseñado por Wilmer el programador. No menciones nunca a Meta ni a Groq."
+    
+    mensajes_api = [{"role": "system", "content": prompt_sistema}]
+    
+    ultimos_mensajes = st.session_state.historial_mensajes[-mensajes_a_recordar:]
+    for msg in ultimos_mensajes:
+        rol_api = "user" if msg.get("rol") == "user" else "assistant"
