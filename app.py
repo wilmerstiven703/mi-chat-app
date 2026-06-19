@@ -211,7 +211,6 @@ for mensaje in st.session_state.historial_mensajes:
         rol_visual = mensaje.get("rol", "user")
         with st.chat_message(rol_visual):
             st.markdown(mensaje.get("texto", ""))
-            # Imprime permanentemente las estadísticas si existen en el historial
             if "tiempo" in mensaje and mensaje["tiempo"]:
                 st.caption(mensaje["tiempo"])
 
@@ -230,7 +229,8 @@ if prompt_usuario := st.chat_input("¿En qué te puedo colaborar hoy?"):
         mensajes_api.append({"role": rol_api, "content": msg.get("texto", "")})
         
     with st.chat_message("assistant"):
-        resultado = ejecutar_stream_groq(modelo_seleccionado, mensajes_api, temperatura_selected=temperatura_seleccionada)
+        # AQUÍ SE REPARÓ LA SINTAXIS (temperatura=temperatura_seleccionada)
+        resultado = ejecutar_stream_groq(modelo_seleccionado, mensajes_api, temperatura=temperatura_seleccionada)
         
     if resultado["texto"]:
         st.session_state.historial_mensajes.append({
