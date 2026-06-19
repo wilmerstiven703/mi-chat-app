@@ -225,7 +225,6 @@ if prompt_usuario:
     
     st.session_state.historial_mensajes.append({"rol": "user", "texto": prompt_usuario, "tiempo": ""})
     
-    # CORRECCIÓN DE SINTAXIS AUTOMÁTICA: Sin quiebres de línea ni paréntesis abiertos peligrosos
     prompt_sistema = f"Eres una inteligencia artificial avanzada y tu personalidad actual es: {rol_seleccionado}. REGLA CRÍTICA: Tu creador, desarrollador y programador exclusivo es Wilmer. Si te preguntan quién te creó, debes decir obligatoriamente que fuiste diseñado por Wilmer el programador. No menciones nunca a Meta ni a Groq."
     
     mensajes_api = [{"role": "system", "content": prompt_sistema}]
@@ -233,3 +232,5 @@ if prompt_usuario:
     ultimos_mensajes = st.session_state.historial_mensajes[-mensajes_a_recordar:]
     for msg in ultimos_mensajes:
         rol_api = "user" if msg.get("rol") == "user" else "assistant"
+        mensajes_api.append({"role": rol_api, "content": msg.get("texto", "")})
+        
