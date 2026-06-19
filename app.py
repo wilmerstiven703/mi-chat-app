@@ -147,23 +147,17 @@ if contenido_archivo:
                 )
                 
                 for chunk in stream_fix:
-                    try:
-                        if chunk.choices and len(chunk.choices) > 0:
-                            contenido = chunk.choices[0].delta.content  
-                            if contenido:
-                                respuesta_texto += contenido
-                                contenedor_texto.markdown(respuesta_texto)
-                    except Exception:
-                        continue
+                    if chunk.choices and len(chunk.choices) > 0:
+                        contenido = chunk.choices[0].delta.content  
+                        if contenido:
+                            respuesta_texto += contenido
+                            contenedor_texto.markdown(respuesta_texto)
                 
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
             
-            # EXTRACCIÓN Y LIMPIEZA CORREGIDA SIN ELEMENTOS ABIERTOS
             if "```" in respuesta_texto:
                 partes = respuesta_texto.split("```")
-                # Tomamos de forma segura el bloque del medio si existe
                 codigo_limpio = partes[1] if len(partes) >= 3 else partes[0]
-                
                 for lang in ["python\n", "javascript\n", "html\n", "css\n", "json\n"]:
                     codigo_limpio = codigo_limpio.replace(lang, "")
                 st.session_state.codigo_corregido = codigo_limpio
@@ -242,3 +236,11 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         with st.chat_message("assistant"):
             contenedor_texto = st.empty()
             respuesta_texto = ""
+            
+            stream = client.chat.completions.create(
+                model=modelo_seleccionado,
+                messages=historial_completo,
+                temperature=temperatura_seleccionada,
+                stream=True,
+            )
+            
