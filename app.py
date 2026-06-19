@@ -168,8 +168,6 @@ if contenido_archivo:
         respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
             
         if respuesta_texto:
-            st.session_state.historial_mensajes.append({"role": "assistant", "texto": respuesta_texto})
-            
             if "```" in respuesta_texto:
                 partes = respuesta_texto.split("```")
                 codigo_limpio = partes[1] if len(partes) >= 3 else partes[0]
@@ -178,6 +176,9 @@ if contenido_archivo:
                 st.session_state.codigo_corregido = codigo_limpio
             else:
                 st.session_state.codigo_corregido = respuesta_texto
+            
+            # Guardamos la respuesta del fixer en el historial para que no se borre
+            st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
             st.rerun()
 
 # Botón para descargar exclusivamente el código reparado
@@ -211,20 +212,21 @@ if st.sidebar.button("Toque para borrar chat"):
     st.session_state.codigo_corregido = ""
     st.rerun()
 
-# 4. Mostrar todos los mensajes anteriores en la pantalla
+# 4. Mostrar todos los mensajes anteriores en la pantalla de manera persistente
 for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (FLUIDA Y SIN WITH)
+# 5. Entrada del usuario estándar (SISTEMA NATIVO ESTABLE)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
+    # Mostramos el mensaje en pantalla inmediatamente
+    with st.chat_message("user"):
+        st.markdown(pregunta_usuario)
+        
+    # Guardamos en el historial del estado
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
-    st.rerun()
-
-# Procesar la respuesta de la IA si el último mensaje es del usuario
-if st.session_state.historial_mensajes and st.session_state.historial_mensajes[-1]["rol"] == "user":
-    ult_mensaje = st.session_state.historial_mensajes[-1]["texto"]
     
+    # Configuración de los prompts de sistema
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
         prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código con ejemplos claros."
@@ -234,12 +236,9 @@ if st.session_state.historial_mensajes and st.session_state.historial_mensajes[-
         prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles usando analogías simples."
 
     historial_completo = [{"role": "system", "content": prompt_sistema}]
-    historial_recortado = st.session_state.historial_mensajes[:-1][-mensajes_a_recordar:] if len(st.session_state.historial_mensajes) > 1 else []
+    historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
     
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
-        historial_completo.append({"role": rol_api, "content": msg["texto"]})
-    
-    if contenido_archivo:
-        texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {ult_mensaje}"
-        historial_completo.append({"role": "user", "content": texto_unificado})
+        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
+            texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
