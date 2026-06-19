@@ -6,7 +6,7 @@ from groq import Groq
 # 1. Configuración de la aplicación web
 st.set_page_config(page_title="Mi Súper Chatbot Groq", page_icon="⚡", layout="wide")
 
-# --- DISEÑO VISUAL CON ST.HTML ---
+# --- DISEÑO VISUAL MEJORADO CON ST.HTML ---
 st.html("""
     <style>
     /* Fondo principal de la app */
@@ -19,7 +19,7 @@ st.html("""
     h1 {
         color: #00ff66 !important;
         font-family: 'Courier New', Courier, monospace !important;
-        text-shadow: 0 0 10px rgba(0, 255, 102, 0.5) !important;
+        text-shadow: 0 0 15px rgba(0, 255, 102, 0.6) !important;
     }
     
     /* Personalización de la barra lateral */
@@ -32,6 +32,15 @@ st.html("""
     [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {
         color: #00ff66 !important;
         font-family: 'Courier New', Courier, monospace !important;
+    }
+    
+    /* Estilo de los captions de tiempo */
+    .stCaption {
+        color: #8b949e !important;
+        font-size: 0.85rem !important;
+        border-top: 1px dashed #30363d;
+        padding-top: 4px;
+        margin-top: 4px;
     }
     </style>
 """)
@@ -90,9 +99,15 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
 # --- BARRA LATERAL CONFIGURADA ---
 st.sidebar.header("🛠️ CONFIGURACIÓN")
 
+# MEJORA: Modelos actualizados y potentes añadidos a las opciones
 modelo_seleccionado = st.sidebar.selectbox(
     "Elige el cerebro de la IA:",
-    options=["llama-3.1-8b-instant", "llama-3.3-70b-versatile"],
+    options=[
+        "llama-3.3-70b-versatile", 
+        "llama-3.1-8b-instant", 
+        "gemma2-9b-it", 
+        "mixtral-8x7b-32768"
+    ],
     index=0
 )
 
@@ -131,7 +146,7 @@ if archivo_subido is not None:
     except Exception:
         st.sidebar.error("Asegúrate de que sea texto plano o código.")
 
-# Herramientas de Automatización de Archivos (CORREGIDO)
+# Herramientas de Automatización de Archivos
 if contenido_archivo:
     col_fix, col_doc = st.sidebar.columns(2)
     
@@ -212,7 +227,7 @@ for mensaje in st.session_state.historial_mensajes:
             if "tiempo" in mensaje and mensaje["tiempo"]:
                 st.caption(mensaje["tiempo"])
 
-# 5. Entrada del usuario en el chat y guardado persistente del tiempo (CORREGIDO)
+# 5. Entrada del usuario en el chat y guardado persistente del tiempo
 if prompt_usuario := st.chat_input("¿En qué te puedo colaborar hoy?"):
     with st.chat_message("user"):
         st.markdown(prompt_usuario)
@@ -227,12 +242,3 @@ if prompt_usuario := st.chat_input("¿En qué te puedo colaborar hoy?"):
         mensajes_api.append({"role": rol_api, "content": msg.get("texto", "")})
         
     with st.chat_message("assistant"):
-        resultado = ejecutar_stream_groq(modelo_seleccionado, mensajes_api, temperatura=temperatura_seleccionada)
-        
-    if resultado["texto"]:
-        st.session_state.historial_mensajes.append({
-            "rol": "assistant", 
-            "texto": resultado["texto"],
-            "tiempo": resultado["tiempo"]
-        })
-        st.rerun()
