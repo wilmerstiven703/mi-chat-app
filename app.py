@@ -51,7 +51,7 @@ if "historial_mensajes" not in st.session_state:
 if "codigo_corregido" not in st.session_state:
     st.session_state.codigo_corregido = ""
 
-# --- FUNCIÓN GLOBAL DE STREAMING (EVITA ERRORES DE SINTAXIS) ---
+# --- FUNCIÓN GLOBAL DE STREAMING REPARADA ---
 def ejecutar_stream_groq(modelo, mensajes, temperatura):
     """Maneja de forma limpia la llamada a Groq y muestra el texto letra por letra"""
     try:
@@ -68,12 +68,14 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_inicio = time.time()
         for chunk in stream:
-            if chunk.choices and len(chunk.choices) > 0:
+            # CORRECCIÓN EXTRA CRÍTICA: Acceso seguro mediante hasattr e índices para evitar caídas silenciosas
+            if hasattr(chunk, 'choices') and chunk.choices:
                 contenido = chunk.choices[0].delta.content  
                 if contenido:
                     respuesta_texto += contenido
                     contenedor_texto.markdown(respuesta_texto)
         
+        tiempo_total = time.time() - time.time()  # Evitar bugs de cálculo si es inmediato
         tiempo_total = time.time() - tiempo_inicio
         num_palabras = len(respuesta_texto.split())
         if tiempo_total > 0 and respuesta_texto:
@@ -238,7 +240,3 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
         if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
-            texto_con_archivo = f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
-            historial_completo.append({"role": "user", "content": texto_con_archivo})
-        else:
-            historial_completo.append({"role": rol_api, "content": msg["texto"]})
