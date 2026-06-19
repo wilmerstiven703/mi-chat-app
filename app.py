@@ -203,14 +203,15 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (NATIVA Y SIN REFRESCAR)
+# 5. Entrada del usuario estándar (ESTRUCTURA LINEAL DEFINITIVA)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
+    # Guardamos tu pregunta e imprimimos en pantalla
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
-    
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
     
-    prompt_sistema = "Eres un chatbot ultra rápido, divertido y expert en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
+    # Personalidad del prompt
+    prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
         prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código con ejemplos claros."
     elif rol_seleccionado == "Traductor Pro 🌐":
@@ -218,9 +219,9 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     elif rol_seleccionado == "Profesor Divertido 🎓":
         prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles usando analogías simples."
 
+    # Configuración del paquete limpio para Groq
     historial_completo = [{"role": "system", "content": prompt_sistema}]
     historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
     
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
-        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
