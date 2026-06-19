@@ -1,4 +1,5 @@
 import os
+import time
 import streamlit as st
 from groq import Groq
 
@@ -169,7 +170,6 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         
         for msg in historial_recortado:
             rol_api = "user" if msg["rol"] == "user" else "assistant"
-            # Inyección segura del archivo en el último mensaje de la lista
             if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
                 texto_con_archivo = (
                     f"El usuario ha adjuntado un archivo llamado '{archivo_subido.name}' con el siguiente contenido:\n"
@@ -180,7 +180,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             else:
                 historial_completo.append({"role": rol_api, "content": msg["texto"]})
             
-        # Llamada a la API de Groq con lectura directa y estable de caracteres
+        # Llamada a la API de Groq midiendo el rendimiento
         with st.chat_message("assistant"):
             contenedor_texto = st.empty()
             respuesta_texto = ""
@@ -192,17 +192,28 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                 stream=True,
             )
             
+            # NUEVO: Cronómetro de inicio
+            tiempo_inicio = time.time()
+            
             for chunk in stream:
                 if chunk.choices and len(chunk.choices) > 0:
-                    contenido = chunk.choices[0].delta.content
+                    contenido = chunk.choices.delta.content
                     if contenido:
                         respuesta_texto += contenido
-                        contenedor_texto.markdown(respuesta_texto) # Muestra el texto letra por letra de forma segura
+                        contenedor_texto.markdown(respuesta_texto)
+            
+            # NUEVO: Cronómetro de fin y cálculo de velocidad
+            tiempo_total = time.time() - tiempo_inicio
+            num_palabras = len(respuesta_texto.split())
+            
+            # Evitamos división entre cero si la respuesta es ultra corta
+            if tiempo_total > 0:
+                velocidad = num_palabras / tiempo_total
+                # Mostramos una pequeña etiqueta verde estilo terminal abajo de la respuesta
+                st.caption(f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
             
         # Guardamos la respuesta del asistente en el historial general
         st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
-        
-        # Re-renderizamos para que se actualicen las métricas laterales con el nuevo conteo de palabras
         st.rerun()
         
     except Exception as e:
