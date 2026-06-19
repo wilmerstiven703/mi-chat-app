@@ -69,6 +69,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_inicio = time.time()
         for chunk in stream:
+            # CORRECCIÓN DE ERROR: Validación robusta para evitar bloqueos del stream
             if chunk.choices and len(chunk.choices) > 0:
                 contenido = chunk.choices[0].delta.content
                 if contenido:
@@ -181,9 +182,9 @@ if st.session_state.historial_mensajes:
     chat_en_texto = "=== HISTORIAL BOT DE WILMER ===\n\n"
     for msg in st.session_state.historial_mensajes:
         if isinstance(msg, dict):
-            rol_etiqueta = msg.get("rol", msg.get("role", "user"))
+            rol_etiqueta = msg.get("rol", "user")
             rol = "Usuario" if rol_etiqueta == "user" else "Asistente"
-            chat_en_texto += f"[{rol}]: {msg.get('texto', msg.get('text', ''))}\n" + "-"*40 + "\n"
+            chat_en_texto += f"[{rol}]: {msg.get('texto', '')}\n" + "-"*40 + "\n"
     st.sidebar.download_button(label="💾 Descargar chat (.txt)", data=chat_en_texto, file_name="historial_chat_wilmer.txt", mime="text/plain")
 
 if st.sidebar.button("Toque para borrar chat"):
@@ -192,35 +193,36 @@ if st.sidebar.button("Toque para borrar chat"):
     st.session_state.manual_readme = ""
     st.rerun()
 
-# 4. Mostrar mensajes anteriores
+# 4. Mostrar mensajes anteriores (CERRADO Y COMPLETADO)
 for mensaje in st.session_state.historial_mensajes:
     if isinstance(mensaje, dict):
-        rol_visual = mensaje.get("rol", mensaje.get("role", "user"))
-        texto_visual = mensaje.get("texto", mensaje.get("text", ""))
+        rol_visual = mensaje.get("rol", "user")
         with st.chat_message(rol_visual):
-            st.markdown(texto_visual)
+            st.markdown(mensaje.get("texto", ""))
 
-# 5. Entrada del usuario estándar
-if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
-    st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
-    
+# 5. Entrada de texto del usuario en el chat y lógica de respuesta
+if prompt_usuario := st.chat_input("¿En qué te puedo colaborar hoy?"):
+    # Renderizar inmediatamente el mensaje en pantalla
     with st.chat_message("user"):
-        st.markdown(pregunta_usuario)
+        st.markdown(prompt_usuario)
     
-    prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
-    if rol_seleccionado == "Programador Experto 💻":
-        prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código con ejemplos claros."
-    elif rol_seleccionado == "Traductor Pro 🌐":
-        prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma de forma clara."
-    elif rol_seleccionado == "Profesor Divertido 🎓":
-        prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles usando analogías simples."
-
-    historial_completo = [{"role": "system", "content": prompt_sistema}]
-    historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
+    # Guardar en el almacenamiento de la sesión
+    st.session_state.historial_mensajes.append({"rol": "user", "texto": prompt_usuario})
     
-    for msg in historial_recortado:
-        if isinstance(msg, dict):
-            rol_api_raw = msg.get("rol", msg.get("role", "user"))
-            rol_api = "user" if rol_api_raw == "user" else "assistant"
-            historial_completo.append({"role": rol_api, "content": msg.get("texto", msg.get("text", ""))})
+    # Configurar el rol inicial del sistema
+    mensajes_api = [{"role": "system", "content": f"Actúa como un {rol_seleccionado} profesional."}]
+    
+    # Adjuntar historial delimitado por el componente de memoria
+    ultimos_mensajes = st.session_state.historial_mensajes[-mensajes_a_recordar:]
+    for msg in ultimos_mensajes:
+        rol_api = "user" if msg.get("rol") == "user" else "assistant"
+        mensajes_api.append({"role": rol_api, "content": msg.get("texto", "")})
         
+    # Llamar a la API con streaming visual continuo
+    with st.chat_message("assistant"):
+        respuesta_ia = ejecutar_stream_groq(modelo_seleccionado, mensajes_api, temperatura_seleccionada)
+        
+    # Guardar la respuesta final e instruir recarga limpia de la app
+    if respuesta_ia:
+        st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_ia})
+        st.rerun()
