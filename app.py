@@ -78,7 +78,6 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_inicio = time.time()
         for chunk in stream:
-            # CORRECCIÓN DEFINITIVA: Acceder correctamente al índice [0] de la lista de opciones
             if chunk.choices and len(chunk.choices) > 0:
                 contenido = chunk.choices[0].delta.content
                 if contenido:
@@ -125,7 +124,7 @@ st.sidebar.markdown("---")
 # Panel de Estadísticas
 st.sidebar.subheader("📊 Estadísticas de la Sesión")
 total_palabras = sum(len(msg.get("texto", "").split()) for msg in st.session_state.historial_mensajes if isinstance(msg, dict))
-st.sidebar.metric(label="Palabras processed:", value=f"{total_palabras}")
+st.sidebar.metric(label="Palabras procesadas:", value=f"{total_palabras}")
 st.sidebar.metric(label="Mensajes enviados:", value=f"{len(st.session_state.historial_mensajes)}")
 
 st.sidebar.markdown("---")
@@ -228,7 +227,8 @@ for mensaje in st.session_state.historial_mensajes:
                 st.caption(mensaje["tiempo"])
 
 # 5. Entrada del usuario en el chat y guardado persistente del tiempo
-if prompt_usuario := st.chat_input("¿En qué te puedo colaborar hoy?"):
+prompt_usuario = st.chat_input("¿En qué te puedo colaborar hoy?")
+if prompt_usuario:
     with st.chat_message("user"):
         st.markdown(prompt_usuario)
     
@@ -242,3 +242,5 @@ if prompt_usuario := st.chat_input("¿En qué te puedo colaborar hoy?"):
         mensajes_api.append({"role": rol_api, "content": msg.get("texto", "")})
         
     with st.chat_message("assistant"):
+        resultado = ejecutar_stream_groq(modelo_seleccionado, mensajes_api, temperatura=temperatura_seleccionada)
+        
