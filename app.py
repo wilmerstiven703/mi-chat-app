@@ -1,6 +1,6 @@
 import os
 import time
-import streamlit as st
+import streamlit st
 from groq import Groq
 
 # 1. Configuración de la aplicación web
@@ -139,17 +139,17 @@ if contenido_archivo:
                 contenedor_texto = st.empty()
                 respuesta_texto = ""
                 
-                stream = client.chat.completions.create(
+                stream_fix = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[{"role": "user", "content": prompt_fixer}],
                     temperature=0.1,
                     stream=True,
                 )
                 
-                for chunk in stream:
+                for chunk in stream_fix:
                     try:
                         if chunk.choices and len(chunk.choices) > 0:
-                            contenido = chunk.choices[0].delta.content  
+                            contenido = chunk.choices.delta.content  
                             if contenido:
                                 respuesta_texto += contenido
                                 contenedor_texto.markdown(respuesta_texto)
@@ -158,13 +158,17 @@ if contenido_archivo:
                 
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
             
-            # Limpieza sintáctica corregida del bloque de código markdown
+            # EXTRACCIÓN Y LIMPIEZA TOTALMENTE CORREGIDA
             if "```" in respuesta_texto:
                 partes = respuesta_texto.split("```")
-                codigo_limpio = partes[1]
-                for lang in ["python\n", "javascript\n", "html\n", "css\n"]:
+                if len(partes) >= 3:
+                    codigo_limpio = partes[1]
+                else:
+                    codigo_limpio = partes[0]
+                
+                for lang in ["python\n", "javascript\n", "html\n", "css\n", "json\n"]:
                     codigo_limpio = codigo_limpio.replace(lang, "")
-                st.session_state.codigo_corregido = codigo_limpio
+                st.session_state.indigo_corregido = codigo_limpio
             else:
                 st.session_state.codigo_corregido = respuesta_texto
                 
@@ -241,5 +245,3 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             contenedor_texto = st.empty()
             respuesta_texto = ""
             
-            stream = client.chat.completions.create(
-                model=modelo_seleccionado,
