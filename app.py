@@ -79,11 +79,9 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         num_palabras = len(respuesta_texto.split())
         velocidad = num_palabras / tiempo_total if tiempo_total > 0 else 0
         
-        # Guardamos la métrica en texto plano para que el historial pueda recordarla
         info_tiempo = f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg)."
         st.caption(info_tiempo)
             
-        # Devolvemos un diccionario con el texto y la métrica de tiempo
         return {"texto": respuesta_texto, "tiempo": info_tiempo}
     except Exception as e:
         st.error(f"Error de comunicación con Groq: {e}")
@@ -109,7 +107,7 @@ temperatura_seleccionada = st.sidebar.slider("Creatividad (Temperatura):", 0.0, 
 
 st.sidebar.markdown("---")
 
-# Panel de Estadísticas (Protegido contra fallas de memoria)
+# Panel de Estadísticas
 st.sidebar.subheader("📊 Estadísticas de la Sesión")
 total_palabras = sum(len(msg.get("texto", "").split()) for msg in st.session_state.historial_mensajes if isinstance(msg, dict))
 st.sidebar.metric(label="Palabras procesadas:", value=f"{total_palabras}")
@@ -133,13 +131,13 @@ if archivo_subido is not None:
     except Exception:
         st.sidebar.error("Asegúrate de que sea texto plano o código.")
 
-# Herramientas de Automatización de Archivos
+# Herramientas de Automatización de Archivos (CORREGIDO)
 if contenido_archivo:
     col_fix, col_doc = st.sidebar.columns(2)
     
     with col_fix:
         if st.button("🛠️ Reparar Bugs"):
-            st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Repara los errores de mi archivo: `{archivo_subido.name}`"})
+            st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Repara los errores de mi archivo: `{archivo_subido.name}`", "tiempo": ""})
             prompt_fixer = (
                 f"Eres un experto en ingeniería de software. Detecta bugs y corrígelos. Devuelve únicamente el código completo "
                 f"perfectamente reparado dentro de un único bloque de código markdown sin texto adicional alrededor.\n\n"
@@ -158,7 +156,7 @@ if contenido_archivo:
 
     with col_doc:
         if st.button("📝 Crear README"):
-            st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Genera la documentación para mi archivo: `{archivo_subido.name}`"})
+            st.session_state.historial_mensajes.append({"rol": "user", "texto": f"Genera la documentación para mi archivo: `{archivo_subido.name}`", "tiempo": ""})
             prompt_readme = (
                 f"Eres un documentador técnico profesional. Analiza el siguiente código y genera un manual de usuario "
                 f"profesional en formato Markdown (README.md). Debe incluir: Nombre del proyecto, Descripción clara, "
@@ -214,7 +212,7 @@ for mensaje in st.session_state.historial_mensajes:
             if "tiempo" in mensaje and mensaje["tiempo"]:
                 st.caption(mensaje["tiempo"])
 
-# 5. Entrada del usuario en el chat y guardado persistente del tiempo
+# 5. Entrada del usuario en el chat y guardado persistente del tiempo (CORREGIDO)
 if prompt_usuario := st.chat_input("¿En qué te puedo colaborar hoy?"):
     with st.chat_message("user"):
         st.markdown(prompt_usuario)
@@ -229,12 +227,12 @@ if prompt_usuario := st.chat_input("¿En qué te puedo colaborar hoy?"):
         mensajes_api.append({"role": rol_api, "content": msg.get("texto", "")})
         
     with st.chat_message("assistant"):
-        # AQUÍ SE REPARÓ LA SINTAXIS (temperatura=temperatura_seleccionada)
         resultado = ejecutar_stream_groq(modelo_seleccionado, mensajes_api, temperatura=temperatura_seleccionada)
         
     if resultado["texto"]:
         st.session_state.historial_mensajes.append({
-            git add app.py
-git commit -m "Solucionar error de sintaxis en el historial"
-git push origin main
-
+            "rol": "assistant", 
+            "texto": resultado["texto"],
+            "tiempo": resultado["tiempo"]
+        })
+        st.rerun()
