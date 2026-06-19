@@ -175,7 +175,7 @@ st.sidebar.markdown("---")
 # Descargas Dinámicas
 if st.session_state.codigo_corregido:
     st.sidebar.download_button(
-        label="📥 Descargar Script REPARADO", data=st.session_state.codigo_corregido, file_name=nombre_archivo, mime="text/plain"
+        label="🚀 Descargar archivo REPARADO", data=st.session_state.codigo_corregido, file_name=nombre_archivo, mime="text/plain"
     )
 
 if st.session_state.manual_readme:
@@ -185,7 +185,6 @@ if st.session_state.manual_readme:
 
 # Utilidades de Historial
 if st.session_state.historial_mensajes:
-    st.sidebar.markdown("---")
     chat_en_texto = "=== HISTORIAL BOT DE WILMER ===\n\n"
     for msg in st.session_state.historial_mensajes:
         rol = "Usuario" if msg["rol"] == "user" else "Asistente"
@@ -198,19 +197,18 @@ if st.sidebar.button("Toque para borrar chat"):
     st.session_state.manual_readme = ""
     st.rerun()
 
-# 4. Mostrar mensajes anteriores de manera persistente
+# 4. Mostrar mensajes anteriores
 for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (ESTRUCTURA LINEAL DEFINITIVA)
+# 5. Entrada del usuario estándar (NATIVA Y FLUIDA)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
-    # Guardamos tu pregunta e imprimimos en pantalla
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
+    
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
     
-    # Personalidad del prompt
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
         prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código con ejemplos claros."
@@ -219,9 +217,10 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     elif rol_seleccionado == "Profesor Divertido 🎓":
         prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles usando analogías simples."
 
-    # Configuración del paquete limpio para Groq
     historial_completo = [{"role": "system", "content": prompt_sistema}]
     historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
     
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
+        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
+            texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
