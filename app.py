@@ -173,10 +173,8 @@ if contenido_archivo:
         if respuesta_texto:
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
             
-            # Extracción del bloque de código markdown simplificada y robusta
             if "```" in respuesta_texto:
                 partes = respuesta_texto.split("```")
-                # Si hay bloques markdown válidos, tomamos la sección del código
                 codigo_limpio = partes[1] if len(partes) >= 3 else partes[0]
                 for lang in ["python\n", "javascript\n", "html\n", "css\n", "json\n"]:
                     codigo_limpio = codigo_limpio.replace(lang, "")
@@ -240,5 +238,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
         if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
-            texto_con_archivo = (
-                f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\n"
+            texto_con_archivo = f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
+            historial_completo.append({"role": "user", "content": texto_con_archivo})
+        else:
+            historial_completo.append({"role": rol_api, "content": msg["texto"]})
