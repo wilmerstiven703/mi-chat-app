@@ -53,7 +53,7 @@ if "codigo_corregido" not in st.session_state:
 
 # --- FUNCIÓN GLOBAL DE STREAMING REPARADA ---
 def ejecutar_stream_groq(modelo, mensajes, temperatura):
-    """Maneja la llamada oficial a Groq usando la sintaxis moderna de streaming de forma estable"""
+    """Maneja la llamada oficial a Groq usando la sintaxis moderna de streaming de forma de alta estabilidad"""
     try:
         client = Groq()
         contenedor_texto = st.empty()
@@ -165,7 +165,8 @@ if contenido_archivo:
             f"Contenido:\n```\n{contenido_archivo}\n```"
         )
         
-        respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
+        with st.chat_message("assistant"):
+            respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
             
         if respuesta_texto:
             if "```" in respuesta_texto:
@@ -177,7 +178,6 @@ if contenido_archivo:
             else:
                 st.session_state.codigo_corregido = respuesta_texto
             
-            # Guardamos la respuesta del fixer en el historial para que no se borre
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
             st.rerun()
 
@@ -217,14 +217,14 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (SISTEMA NATIVO ESTABLE)
+# 5. Entrada del usuario estándar (NATIVA Y SIN REFRESCAR)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
+    # Guardamos en el historial del estado primero
+    st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
+    
     # Mostramos el mensaje en pantalla inmediatamente
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
-        
-    # Guardamos en el historial del estado
-    st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
     # Configuración de los prompts de sistema
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
@@ -242,3 +242,4 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         rol_api = "user" if msg["rol"] == "user" else "assistant"
         if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
             texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
+            historial_completo.append({"role": "user", "content": texto_unificado})
