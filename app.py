@@ -51,7 +51,7 @@ if "historial_mensajes" not in st.session_state:
 if "codigo_corregido" not in st.session_state:
     st.session_state.codigo_corregido = ""
 
-# --- FUNCIÓN GLOBAL DE STREAMING COMPLETAMENTE REPARADA ---
+# --- FUNCIÓN GLOBAL DE STREAMING REPARADA ---
 def ejecutar_stream_groq(modelo, mensajes, temperatura):
     """Maneja la llamada oficial a Groq usando la sintaxis moderna de streaming de forma estable"""
     try:
@@ -68,21 +68,17 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_inicio = time.time()
         for chunk in stream:
-            # SOLUCIÓN MAESTRA: Validamos que exista choices y accedemos estrictamente al primer elemento [0]
-            if hasattr(chunk, 'choices') and chunk.choices:
-                try:
-                    contenido = chunk.choices[0].delta.content  # <--- ÍNDICE EXPLÍCITO [0] CORRECTO
-                    if contenido:
-                        respuesta_texto += contenido
-                        contenedor_texto.markdown(respuesta_texto)
-                except (AttributeError, IndexError):
-                    continue
+            if chunk.choices and len(chunk.choices) > 0:
+                contenido = chunk.choices[0].delta.content
+                if contenido:
+                    respuesta_texto += contenido
+                    contenedor_texto.markdown(respuesta_texto)
         
         tiempo_total = time.time() - tiempo_inicio
         num_palabras = len(respuesta_texto.split())
         if tiempo_total > 0 and respuesta_texto:
             velocidad = num_palabras / tiempo_total
-            st.caption(f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
+            st.caption(f"⏱️ Generadas `{num_palabras}` words en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
             
         return respuesta_texto
     except Exception as e:
@@ -223,14 +219,12 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar
+# 5. Entrada del usuario estándar (ESTABLE Y SIN RESETEOS)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
-    with st.chat_message("user"):
-        st.markdown(pregunta_usuario)
-    
-    # Se guarda inmediatamente en el historial
+    # Guardamos y pintamos inmediatamente en la interfaz
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
+    # Configuramos el prompt de la personalidad elegida
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
         prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros."
@@ -242,5 +236,10 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     historial_completo = [{"role": "system", "content": prompt_sistema}]
     historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
     
+    # Construcción segura del historial para la API
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
+        historial_completo.append({"role": rol_api, "content": msg["texto"]})
+        
+    # Si hay un archivo subido, modificamos la petición final
+    if contenido_archivo and historial_completo[-1]["role"] == "user":
