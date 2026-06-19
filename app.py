@@ -176,12 +176,11 @@ if st.session_state.manual_readme:
         label="📝 Descargar Manual README.md", data=st.session_state.manual_readme, file_name="README.md", mime="text/plain"
     )
 
-# CORRECCIÓN MAESTRA DE LA LÍNEA 181: Uso de .get() para evitar caídas por variables viejas
+# CORRECCIÓN DE LA MEMORIA HISTÓRICA
 if st.session_state.historial_mensajes:
     chat_en_texto = "=== HISTORIAL BOT DE WILMER ===\n\n"
     for msg in st.session_state.historial_mensajes:
         if isinstance(msg, dict):
-            # Cambiado msg["rol"] por msg.get("rol", msg.get("role", "user")) para blindar el bucle por completo
             rol_etiqueta = msg.get("rol", msg.get("role", "user"))
             rol = "Usuario" if rol_etiqueta == "user" else "Asistente"
             chat_en_texto += f"[{rol}]: {msg.get('texto', msg.get('text', ''))}\n" + "-"*40 + "\n"
@@ -193,7 +192,7 @@ if st.sidebar.button("Toque para borrar chat"):
     st.session_state.manual_readme = ""
     st.rerun()
 
-# 4. Mostrar mensajes anteriores (También blindado con .get)
+# 4. Mostrar mensajes anteriores
 for mensaje in st.session_state.historial_mensajes:
     if isinstance(mensaje, dict):
         rol_visual = mensaje.get("rol", mensaje.get("role", "user"))
@@ -223,3 +222,5 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         if isinstance(msg, dict):
             rol_api_raw = msg.get("rol", msg.get("role", "user"))
             rol_api = "user" if rol_api_raw == "user" else "assistant"
+            historial_completo.append({"role": rol_api, "content": msg.get("texto", msg.get("text", ""))})
+        
