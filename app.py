@@ -51,9 +51,9 @@ if "historial_mensajes" not in st.session_state:
 if "codigo_corregido" not in st.session_state:
     st.session_state.codigo_corregido = ""
 
-# --- FUNCIÓN GLOBAL DE STREAMING TOTALMENTE ACTUALIZADA Y BLINDADA ---
+# --- FUNCIÓN GLOBAL DE STREAMING COMPLETAMENTE REPARADA ---
 def ejecutar_stream_groq(modelo, mensajes, temperatura):
-    """Maneja la llamada oficial a Groq usando la sintaxis moderna de streaming"""
+    """Maneja la llamada oficial a Groq usando la sintaxis moderna de streaming de forma estable"""
     try:
         client = Groq()
         contenedor_texto = st.empty()
@@ -68,13 +68,15 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_inicio = time.time()
         for chunk in stream:
-            # SOLUCIÓN AL CONGELAMIENTO: Extracción 100% segura del contenido del delta
-            if chunk.choices and len(chunk.choices) > 0:
-                delta = chunk.choices[0].delta
-                contenido = getattr(delta, "content", None)
-                if contenido:
-                    respuesta_texto += contenido
-                    contenedor_texto.markdown(respuesta_texto)
+            # SOLUCIÓN MAESTRA: Validamos que exista choices y accedemos estrictamente al primer elemento [0]
+            if hasattr(chunk, 'choices') and chunk.choices:
+                try:
+                    contenido = chunk.choices[0].delta.content  # <--- ÍNDICE EXPLÍCITO [0] CORRECTO
+                    if contenido:
+                        respuesta_texto += contenido
+                        contenedor_texto.markdown(respuesta_texto)
+                except (AttributeError, IndexError):
+                    continue
         
         tiempo_total = time.time() - tiempo_inicio
         num_palabras = len(respuesta_texto.split())
@@ -84,7 +86,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
             
         return respuesta_texto
     except Exception as e:
-        st.error(f"Error en la conexión con la IA: {e}")
+        st.error(f"Error de comunicación con Groq: {e}")
         return ""
 
 # --- BARRA LATERAL CONFIGURADA ---
@@ -225,6 +227,8 @@ for mensaje in st.session_state.historial_mensajes:
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     with st.chat_message("user"):
         st.markdown(pregunta_usuario)
+    
+    # Se guarda inmediatamente en el historial
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
     
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
@@ -240,5 +244,3 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
-        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
-            texto_con_archivo = f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
