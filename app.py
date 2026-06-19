@@ -1,4 +1,4 @@
- import os
+import os
 import time
 import streamlit as st
 from groq import Groq
@@ -70,7 +70,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         tiempo_inicio = time.time()
         for chunk in stream:
             if chunk.choices and len(chunk.choices) > 0:
-                contenido = chunk.choices[0].delta.content
+                contenido = chunk.choices.delta.content
                 if contenido:
                     respuesta_texto += contenido
                     contenedor_texto.markdown(respuesta_texto)
@@ -147,7 +147,7 @@ if contenido_archivo:
             if respuesta_texto:
                 if "```" in respuesta_texto:
                     partes = respuesta_texto.split("```")
-                    codigo_limpio = partes[1] if len(partes) >= 3 else partes[0]
+                    codigo_limpio = partes if len(partes) >= 3 else partes
                     for lang in ["python\n", "javascript\n", "html\n", "css\n", "json\n"]:
                         codigo_limpio = codigo_limpio.replace(lang, "")
                     st.session_state.codigo_corregido = codigo_limpio
