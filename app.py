@@ -79,7 +79,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         tiempo_inicio = time.time()
         for chunk in stream:
             if chunk.choices and len(chunk.choices) > 0:
-                contenido = chunk.choices[0].delta.content
+                contenido = chunk.choices.delta.content
                 if contenido:
                     respuesta_texto += contenido
                     contenedor_texto.markdown(respuesta_texto)
@@ -99,7 +99,6 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
 # --- BARRA LATERAL CONFIGURADA ---
 st.sidebar.header("🛠️ CONFIGURACIÓN")
 
-# MEJORA: Modelos actualizados y potentes añadidos a las opciones
 modelo_seleccionado = st.sidebar.selectbox(
     "Elige el cerebro de la IA:",
     options=[
@@ -242,3 +241,5 @@ if prompt_usuario := st.chat_input("¿En qué te puedo colaborar hoy?"):
         mensajes_api.append({"role": rol_api, "content": msg.get("texto", "")})
         
     with st.chat_message("assistant"):
+        resultado = ejecutar_stream_groq(modelo_seleccionado, mensajes_api, temperatura=temperatura_seleccionada)
+        
