@@ -38,12 +38,12 @@ st.html("""
 
 st.title("⚡ Mi Súper Chatbot de Alta Velocidad")
 
-# 2. Conexión segura con los secretos de Streamlit
+# 2. Conexión SEGURA con los Secretos de Streamlit
 if "GROQ_API_KEY" in st.secrets:
     os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-elif not os.environ.get("GROQ_API_KEY"):
-    st.error("Por favor, configura la variable de entorno o secreto GROQ_API_KEY.")
-    st.stop()
+else:
+    # Si juegas en local o no ha cargado, intenta buscarla en el sistema sin apagar la app
+    pass
 
 # 3. Inicializar el historial y el contenedor de código corregido
 if "historial_mensajes" not in st.session_state:
@@ -55,6 +55,7 @@ if "codigo_corregido" not in st.session_state:
 def ejecutar_stream_groq(modelo, mensajes, temperatura):
     """Maneja la llamada oficial a Groq usando la sintaxis moderna de streaming de forma de alta estabilidad"""
     try:
+        # Inicializa el cliente leyendo dinámicamente el entorno seguro
         client = Groq()
         contenedor_texto = st.empty()
         respuesta_texto = ""
@@ -82,7 +83,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
             
         return respuesta_texto
     except Exception as e:
-        st.error(f"Error de comunicación con Groq: {e}")
+        st.error(f"Error de comunicación con Groq. Revisa si tu API Key en Secrets es correcta. Detalle: {e}")
         return ""
 
 # --- BARRA LATERAL CONFIGURADA ---
@@ -177,7 +178,6 @@ if contenido_archivo:
                 st.session_state.codigo_corregido = codigo_limpio
             else:
                 st.session_state.codigo_corregido = respuesta_texto
-            
             st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
             st.rerun()
 
@@ -217,7 +217,7 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (NATIVA Y SIN REFRESCAR)
+# 5. Entrada del usuario estándar (NATIVA Y CON SECRETS)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     # Guardamos en el historial del estado primero
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
@@ -242,4 +242,3 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         rol_api = "user" if msg["rol"] == "user" else "assistant"
         if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
             texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
-            historial_completo.append({"role": "user", "content": texto_unificado})
