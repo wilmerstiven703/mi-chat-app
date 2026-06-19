@@ -78,7 +78,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         num_palabras = len(respuesta_texto.split())
         if tiempo_total > 0 and respuesta_texto:
             velocidad = num_palabras / tiempo_total
-            st.caption(f"⏱️ Generadas `{num_palabras}` words en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
+            st.caption(f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
             
         return respuesta_texto
     except Exception as e:
@@ -219,7 +219,7 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar (ESTABLE Y SIN RESETEOS)
+# 5. Entrada del usuario estándar (ESTABLE Y ALINEADA)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     # Guardamos y pintamos inmediatamente en la interfaz
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
@@ -239,7 +239,6 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     # Construcción segura del historial para la API
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
-        historial_completo.append({"role": rol_api, "content": msg["texto"]})
         
-    # Si hay un archivo subido, modificamos la petición final
-    if contenido_archivo and historial_completo[-1]["role"] == "user":
+        # Inyección directa y segura del archivo si corresponde al último mensaje
+        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
