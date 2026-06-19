@@ -69,7 +69,6 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_inicio = time.time()
         for chunk in stream:
-            # CORRECCIÓN DE ERROR: Validación robusta para evitar bloqueos del stream
             if chunk.choices and len(chunk.choices) > 0:
                 contenido = chunk.choices[0].delta.content
                 if contenido:
@@ -78,14 +77,17 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_total = time.time() - tiempo_inicio
         num_palabras = len(respuesta_texto.split())
-        if tiempo_total > 0 and respuesta_texto:
-            velocidad = num_palabras / tiempo_total
-            st.caption(f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
+        velocidad = num_palabras / tiempo_total if tiempo_total > 0 else 0
+        
+        # Guardamos la métrica en texto plano para que el historial pueda recordarla
+        info_tiempo = f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg)."
+        st.caption(info_tiempo)
             
-        return respuesta_texto
+        # Devolvemos un diccionario con el texto y la métrica de tiempo
+        return {"texto": respuesta_texto, "tiempo": info_tiempo}
     except Exception as e:
         st.error(f"Error de comunicación con Groq: {e}")
-        return ""
+        return {"texto": "", "tiempo": ""}
 
 # --- BARRA LATERAL CONFIGURADA ---
 st.sidebar.header("🛠️ CONFIGURACIÓN")
@@ -144,10 +146,15 @@ if contenido_archivo:
                 f"Contenido:\n```\n{contenido_archivo}\n```"
             )
             with st.chat_message("assistant"):
-                respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
-            if respuesta_texto:
-                st.session_state.codigo_corregido = respuesta_texto
-                st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Código analizado y corregido con éxito!"})
+                resultado_fixer = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
+            if resultado_fixer["texto"]:
+                st.session_state.codigo_corregido = resultado_fixer["texto"]
+                st.session_state.historial_mensajes.append({
+                    "rol": "assistant", 
+                    "texto": "¡Código analizado y corregido con éxito!",
+                    "tiempo": resultado_fixer["tiempo"]
+                })
+                st.rerun()
 
     with col_doc:
         if st.button("📝 Crear README"):
@@ -159,10 +166,15 @@ if contenido_archivo:
                 f"Código:\n```\n{contenido_archivo}\n```"
             )
             with st.chat_message("assistant"):
-                respuesta_readme = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_readme}], 0.5)
-            if respuesta_readme:
-                st.session_state.manual_readme = respuesta_readme
-                st.session_state.historial_mensajes.append({"rol": "assistant", "texto": "¡Documentación profesional generada!"})
+                resultado_readme = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_readme}], 0.5)
+            if resultado_readme["texto"]:
+                st.session_state.manual_readme = resultado_readme["texto"]
+                st.session_state.historial_mensajes.append({
+                    "rol": "assistant", 
+                    "texto": "¡Documentación profesional generada!",
+                    "tiempo": resultado_readme["tiempo"]
+                })
+                st.rerun()
 
 st.sidebar.markdown("---")
 
@@ -177,7 +189,7 @@ if st.session_state.manual_readme:
         label="📝 Descargar Manual README.md", data=st.session_state.manual_readme, file_name="README.md", mime="text/plain"
     )
 
-# CORRECCIÓN DE LA MEMORIA HISTÓRICA
+# Descargar historial de chat (.txt)
 if st.session_state.historial_mensajes:
     chat_en_texto = "=== HISTORIAL BOT DE WILMER ===\n\n"
     for msg in st.session_state.historial_mensajes:
@@ -193,36 +205,32 @@ if st.sidebar.button("Toque para borrar chat"):
     st.session_state.manual_readme = ""
     st.rerun()
 
-# 4. Mostrar mensajes anteriores (CERRADO Y COMPLETADO)
+# 4. Mostrar mensajes anteriores con sus respectivos tiempos guardados
 for mensaje in st.session_state.historial_mensajes:
     if isinstance(mensaje, dict):
         rol_visual = mensaje.get("rol", "user")
         with st.chat_message(rol_visual):
             st.markdown(mensaje.get("texto", ""))
+            # Imprime permanentemente las estadísticas si existen en el historial
+            if "tiempo" in mensaje and mensaje["tiempo"]:
+                st.caption(mensaje["tiempo"])
 
-# 5. Entrada de texto del usuario en el chat y lógica de respuesta
+# 5. Entrada del usuario en el chat y guardado persistente del tiempo
 if prompt_usuario := st.chat_input("¿En qué te puedo colaborar hoy?"):
-    # Renderizar inmediatamente el mensaje en pantalla
     with st.chat_message("user"):
         st.markdown(prompt_usuario)
     
-    # Guardar en el almacenamiento de la sesión
-    st.session_state.historial_mensajes.append({"rol": "user", "texto": prompt_usuario})
+    st.session_state.historial_mensajes.append({"rol": "user", "texto": prompt_usuario, "tiempo": ""})
     
-    # Configurar el rol inicial del sistema
     mensajes_api = [{"role": "system", "content": f"Actúa como un {rol_seleccionado} profesional."}]
     
-    # Adjuntar historial delimitado por el componente de memoria
     ultimos_mensajes = st.session_state.historial_mensajes[-mensajes_a_recordar:]
     for msg in ultimos_mensajes:
         rol_api = "user" if msg.get("rol") == "user" else "assistant"
         mensajes_api.append({"role": rol_api, "content": msg.get("texto", "")})
         
-    # Llamar a la API con streaming visual continuo
     with st.chat_message("assistant"):
-        respuesta_ia = ejecutar_stream_groq(modelo_seleccionado, mensajes_api, temperatura_seleccionada)
+        resultado = ejecutar_stream_groq(modelo_seleccionado, mensajes_api, temperatura_selected=temperatura_seleccionada)
         
-    # Guardar la respuesta final e instruir recarga limpia de la app
-    if respuesta_ia:
-        st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_ia})
-        st.rerun()
+    if resultado["texto"]:
+        st.session_state.historial_mensajes.append({
