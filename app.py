@@ -68,14 +68,12 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         
         tiempo_inicio = time.time()
         for chunk in stream:
-            # CORRECCIÓN EXTRA CRÍTICA: Acceso seguro mediante hasattr e índices para evitar caídas silenciosas
             if hasattr(chunk, 'choices') and chunk.choices:
                 contenido = chunk.choices[0].delta.content  
                 if contenido:
                     respuesta_texto += contenido
                     contenedor_texto.markdown(respuesta_texto)
         
-        tiempo_total = time.time() - time.time()  # Evitar bugs de cálculo si es inmediato
         tiempo_total = time.time() - tiempo_inicio
         num_palabras = len(respuesta_texto.split())
         if tiempo_total > 0 and respuesta_texto:
@@ -173,7 +171,7 @@ if contenido_archivo:
             respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
             
         if respuesta_texto:
-            st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
+            st.session_state.historial_mensajes.append({"role": "assistant", "texto": respuesta_texto})
             
             if "```" in respuesta_texto:
                 partes = respuesta_texto.split("```")
@@ -228,7 +226,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
-        prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con ejemplos claros."
+        prompt_sistema = "Eres un Ingeniero de Software Senior. Das respuestas técnicas impecables, optimizadas y explicas el código de programación con examples claros."
     elif rol_seleccionado == "Traductor Pro 🌐":
         prompt_sistema = "Eres un traductor experto bilingüe. Tu objetivo es traducir textos a cualquier idioma de forma clara."
     elif rol_seleccionado == "Profesor Divertido 🎓":
@@ -240,3 +238,8 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
         if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
+            texto_con_archivo = f"Archivo: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
+            historial_completo.append({"role": "user", "content": texto_con_archivo})
+        else:
+            historial_completo.append({"role": rol_api, "content": msg["texto"]})
+            
