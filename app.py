@@ -78,6 +78,16 @@ mensajes_a_recordar = st.sidebar.slider(
     help="Cuántos mensajes del historial verá la IA. Un número menor ahorra tokens y acelera el chat."
 )
 
+# NUEVO: Control deslizante para ajustar la temperatura (Creatividad) de la IA
+temperatura_seleccionada = st.sidebar.slider(
+    "Creatividad de la IA (Temperatura):",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.7,
+    step=0.1,
+    help="0.0 = Súper lógica y precisa (código). 1.0 = Muy creativa e innovadora."
+)
+
 st.sidebar.markdown("---")
 
 # Panel de Estadísticas en tiempo real
@@ -172,7 +182,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             rol_api = "user" if msg["rol"] == "user" else "assistant"
             if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
                 texto_con_archivo = (
-                    f"El usuario ha adjuntado un archivo llamado '{archivo_subido.name}' con el Packaging del siguiente contenido:\n"
+                    f"El usuario ha adjuntado un archivo llamado '{archivo_subido.name}' con el siguiente contenido:\n"
                     f"```\n{contenido_archivo}\n```\n"
                     f"Teniendo en cuenta ese archivo, responde a la siguiente petición: {msg['texto']}"
                 )
@@ -188,7 +198,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             stream = client.chat.completions.create(
                 model=modelo_seleccionado,
                 messages=historial_completo,
-                temperature=0.7,
+                temperature=temperatura_seleccionada,  # <--- NUEVO: Conectado al slider de la barra lateral
                 stream=True,
             )
             
@@ -198,7 +208,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
             for chunk in stream:
                 try:
                     if chunk.choices and len(chunk.choices) > 0:
-                        contenido = chunk.choices[0].delta.content  # Aseguramos acceso explícito al índice cero
+                        contenido = chunk.choices[0].delta.content  
                         if contenido:
                             respuesta_texto += contenido
                             contenedor_texto.markdown(respuesta_texto)
@@ -213,7 +223,7 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
                 velocidad = num_palabras / tiempo_total
                 st.caption(f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
             
-        # Guardamos la respuesta del asistente en el historial general (Sin st.rerun destructivo)
+        # Guardamos la respuesta del asistente en el historial general
         st.session_state.historial_mensajes.append({"rol": "assistant", "texto": respuesta_texto})
         
     except Exception as e:
