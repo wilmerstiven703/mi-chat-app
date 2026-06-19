@@ -78,7 +78,7 @@ def ejecutar_stream_groq(modelo, mensajes, temperatura):
         num_palabras = len(respuesta_texto.split())
         if tiempo_total > 0 and respuesta_texto:
             velocidad = num_palabras / tiempo_total
-            st.caption(f"⏱ shrink_text Generated `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
+            st.caption(f"⏱️ Generadas `{num_palabras}` palabras en `{tiempo_total:.2f}` segundos (`{velocidad:.1f}` palabras/seg).")
             
         return respuesta_texto
     except Exception as e:
@@ -165,8 +165,7 @@ if contenido_archivo:
             f"Contenido:\n```\n{contenido_archivo}\n```"
         )
         
-        with st.chat_message("assistant"):
-            respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
+        respuesta_texto = ejecutar_stream_groq("llama-3.3-70b-versatile", [{"role": "user", "content": prompt_fixer}], 0.1)
             
         if respuesta_texto:
             st.session_state.historial_mensajes.append({"role": "assistant", "texto": respuesta_texto})
@@ -217,12 +216,14 @@ for mensaje in st.session_state.historial_mensajes:
     with st.chat_message(mensaje["rol"]):
         st.markdown(mensaje["texto"])
 
-# 5. Entrada del usuario estándar
+# 5. Entrada del usuario estándar (FLUIDA Y SIN WITH)
 if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites..."):
     st.session_state.historial_mensajes.append({"rol": "user", "texto": pregunta_usuario})
-    
-    with st.chat_message("user"):
-        st.markdown(pregunta_usuario)
+    st.rerun()
+
+# Procesar la respuesta de la IA si el último mensaje es del usuario
+if st.session_state.historial_mensajes and st.session_state.historial_mensajes[-1]["rol"] == "user":
+    ult_mensaje = st.session_state.historial_mensajes[-1]["texto"]
     
     prompt_sistema = "Eres un chatbot ultra rápido, divertido y experto en tecnología creado por un programador genial llamado Wilmer. Hablas español perfectamente y respondes de forma concisa."
     if rol_seleccionado == "Programador Experto 💻":
@@ -233,14 +234,12 @@ if pregunta_usuario := st.chat_input("Escribe tu mensaje aquí sin límites...")
         prompt_sistema = "Eres un profesor carismático y alegre. Explicas conceptos difíciles usando analogías simples."
 
     historial_completo = [{"role": "system", "content": prompt_sistema}]
-    historial_recortado = st.session_state.historial_mensajes[-mensajes_a_recordar:]
+    historial_recortado = st.session_state.historial_mensajes[:-1][-mensajes_a_recordar:] if len(st.session_state.historial_mensajes) > 1 else []
     
     for msg in historial_recortado:
         rol_api = "user" if msg["rol"] == "user" else "assistant"
-        if msg == historial_recortado[-1] and msg["rol"] == "user" and contenido_archivo:
-            texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {msg['texto']}"
-            historial_completo.append({"role": "user", "content": texto_unificado})
-        else:
-            historial_completo.append({"role": rol_api, "content": msg["texto"]})
-            
-    with st.chat_message("assistant"):
+        historial_completo.append({"role": rol_api, "content": msg["texto"]})
+    
+    if contenido_archivo:
+        texto_unificado = f"Archivo adjunto: {archivo_subido.name}\n```\n{contenido_archivo}\n```\nPetición: {ult_mensaje}"
+        historial_completo.append({"role": "user", "content": texto_unificado})
